@@ -1,0 +1,117 @@
+# Agent options: codex, pi, agy, claude. For Claude, select an available model
+# and a supported reasoning level (low, medium, high, xhigh).
+max_audit_iterations: 3
+stages:
+  planning:
+    agent: codex
+    model: gpt-5.6-sol
+    reasoning: xhigh
+  execution:
+    agent: codex
+    model: gpt-5.6-sol
+    reasoning: medium
+  repair:
+    agent: codex
+    model: gpt-5.6-sol
+    reasoning: high
+  qa:
+    agent: codex
+    model: gpt-5.6-sol
+    reasoning: high
+  archive:
+    agent: codex
+    model: gpt-5.6-sol
+    reasoning: low
+validation:
+  limit: 3
+  commands: []
+prompts:
+  planning: |
+    Invoke the `specrelay-plan` skill to discuss and plan the change.
+
+    Include demonstrable capabilities, a demo, committed evidence and a reviewer delivery report in the acceptance design. `delivery_report` must explain benefits, acceptance steps, expected results and direct evidence in the user's language. Fix scenarios need understandable, distinct before/after evidence. Map each mutable `submission_evidence.source_path` to an `archive_path` under `tests/evidence/proposals/<change>/**`. `test-results/**` is temporary runtime output only.
+  execution: |
+    Read `{{.StatePath}}` and `{{.AcceptancePath}}`. Identify the current specrelay change from `state.json.change_name` and stay within its proposal scope.
+
+    Invoke the specrelay-exec skill for the current change: `{{.ChangePath}}/`.
+
+    Before completing execution, run a demo covering the target capability. Produce only temporary `test-results/**` evidence declared by `submission_evidence.source_path`; the post-stage gate seals immutable snapshots for the current run. Videos, screenshots and traces must be real readable media or archives. Do not substitute echo/printf, hardcoded strings, exit codes or passing-test messages for user evidence. Do not write directly to `tests/evidence/proposals/<change>/**` or create a git commit.
+  repair: |
+    ## Repair task
+    Stage: `{{.Stage}}` (iteration `{{.Iteration}}`)
+    Run directory: `{{.RunDirectory}}`
+    Read `{{.StatePath}}` and `{{.AcceptancePath}}`, relative to the run directory. Current change: `{{.ChangePath}}/`; diff baseline: `{{.BaselineHead}}`.
+
+    Tasks:
+
+    - Work only within the current proposal scope: inspect implementation, fix discovered issues and run deterministic validation.
+    - `pre_qa_audit` (`audit_N`): inspect acceptance, the complete diff, source and tests. Run the demo and verify target capability coverage. Inspect the preceding immutable checkpoint evidence when present. Produce only temporary `test-results/**` sources for the post-stage gate to seal; do not write the committed evidence under `tests/evidence/proposals/<change>/**`. Continue self-review after repairs; hand off to QA only with no new issues and all required tests passing.
+    - `qa_targeted_repair` (`targeted_repair_N`): fix only the latest QA findings, failed acceptance items and direct regressions. Do not expand scope. For each finding produce reproducible before-failure and after-success evidence for the same scenario. Update temporary sources according to the sealed `submission_evidence` mappings for the gate to snapshot.
+    - Before every independent QA handoff, run the repository's explicit pre-commit hook entry without creating a temporary commit. Apply its changes and rerun until it changes no files. After hooks stabilize, rerun affected tests, all required tests and validation commands.
+    - Recheck inputs and validation every iteration. Before handoff rerun failed tests, all required tests and validation commands. Do not declare `clean` if checks fail or their results do not correspond to the current diff.
+    - Do not create git commits during execution, audit or targeted repair. Only archiving creates the complete delivery commit.
+    - Put current proposal issues in `findings`; put historical debt in `non_blocking_findings`.
+    {{if .HasPreviousRepair}}
+    - Previous checkpoint: `{{.LatestPreviousRepairPath}}`.
+    {{end}}
+    {{if .HasPreviousQA}}
+    - Independent QA that triggered this iteration: `{{.LatestPreviousQAPath}}`. Recheck and address every finding.
+    {{end}}
+    {{if .IsRepairConfirmation}}
+    - This is the mandatory confirmation audit after the preceding `clean`. Start again from state, acceptance, the complete diff and validation results; do not repeat the previous conclusion without rechecking.
+    - If any issue is found, repair it and use `needs_more`. Use `clean` again only if this iteration finds no new issues, requires no further changes and still passes validation.
+    {{end}}
+
+    Write `{{.RepairPath}}`.
+
+    Then run `specrelay flow validate-repair --artifact "{{.RepairPath}}" --json`.
+
+
+    Strict JSON fields: `summary`, `decision`, `evidence[]`, `findings[]`, `checks`, `non_blocking_findings[]`.
+    `decision` must be `clean` or `needs_more`. Use `needs_more` after finding and fixing issues when another confirmation iteration is required; use `clean` only when no known in-scope issues remain.
+    Each finding: `{title,severity,scope,evidence,recommendation}`.
+
+    Continue the same role in backend-scoped session `{{.RoleSessionKey}}`. The repairer cannot archive; independent QA approval is still required after clean.
+  qa: |
+    ## QA task
+    Stage: `{{.Stage}}` (iteration `{{.Iteration}}`)
+    Run directory: `{{.RunDirectory}}`
+    Read `{{.StatePath}}`, `{{.AcceptancePath}}`, {{if .HasRepairCheckpoint}}the latest repair checkpoint, {{else}}no repair checkpoint is configured for this iteration, {{end}}and the current change `{{.ChangePath}}/`. Diff baseline: `{{.BaselineHead}}`.
+
+    Tasks:
+
+    - Validate only the current proposal scope. Do not modify source code or the sealed `acceptance.json`.
+    - Use an independent QA session to assess {{if .HasRepairCheckpoint}}the latest repair checkpoint{{else}}execution results (zero-repair mode has no checkpoint){{end}}. Do not inherit the repairer's self-assessment.
+    - When rejecting a result, include reproducible failure evidence in both findings and acceptance_matrix; the next stage performs targeted repairs from these records.
+    - Verify the demo covers the target capability and inspect the immutable required_evidence snapshots sealed within the current run. Remain read-only: do not modify temporary `test-results/**` sources or write `tests/evidence/proposals/<change>/**`. {{if .HasRepairCheckpoint}}For repaired findings, verify reproducible before-failure and after-success evidence for the same scenario.{{end}}
+    - Copy `acceptance_matrix[].id` exactly from required_tests/required_evidence in the sealed `acceptance.json`, covering acceptance_contract.
+    - Put current proposal issues in `findings`; put historical debt or unrelated issues in `non_blocking_findings` with scope `out_of_scope_existing`.
+    - Blocking scope must be `current_change` or `introduced_regression`. Do not read mutable `source_path` to detect drift or treat a changed `test-results/**` hash as a source regression.
+
+    Write `{{.QAPath}}` relative to the run directory.
+
+    Run there: `specrelay flow validate-qa --artifact "{{.QAPath}}" --acceptance "{{.AcceptancePath}}" --json`.
+
+    {{if .IsFirstRoleTurn}}
+    Write exactly one JSON object.
+
+    Fields: `summary`, `decision` (0=clean, 1=needs_fix), `evidence[]`, `acceptance_matrix[]`, `user_acceptance[]`, `findings[]`, `non_blocking_findings[]`.
+
+    Each `acceptance_matrix[]` entry: `{id,status,artifact,evidence}`, where `status`: 0=passed, 1=failed. Each finding: `{title,severity,scope,evidence,recommendation}`, where `severity`: 1=blocker, 2=major, 3=minor and `scope`: 1=current_change, 2=introduced_regression, 0=out_of_scope_existing. Each `evidence[]` entry must be a string citing reproducible tests, screenshots, traces, console, network or runtime evidence.
+
+    For clean: `decision=0`, `findings=[]`, nonempty `evidence`, and an `acceptance_matrix` covering required_tests/required_evidence. For needs_fix: `decision=1` and nonempty `findings`.
+    {{else}}
+    Continuation: reuse role session `{{.RoleSessionKey}}` and rewrite `{{.QAPath}}` with the same schema.
+    {{end}}
+
+    `user_acceptance[]` must cover every `delivery_report.scenarios` entry and describe observed behavior in ordinary user language, citing that scenario's evidence. Passing tests, command output, exit codes, hashes, HTTP 200 or element existence do not establish an observed user result. Each entry is `{scenario_id,status,observed,evidence_ids}` where status is 0=passed or 1=failed. A clean result must cover all delivery scenarios.
+  archive: |
+    Read `{{.StatePath}}`, `{{.AcceptancePath}}`, `{{.PreviousRepairPaths}}`, and `{{.PreviousQAPaths}}` when present.
+
+    Invoke `specrelay-archive`; use the change name from `state.json.change_name`.
+
+    The engine generates `tests/evidence/proposals/<change>/DELIVERY.md` from final passing QA observations and promotes `tests/evidence/proposals/<change>/**` from immutable snapshots. Review the report for user benefits, acceptance steps, observed results and direct evidence, and confirm git does not ignore the evidence. Do not commit unreadable or incomprehensible evidence, or copy/rebuild it from `test-results/**`.
+
+    Starting from the sealed `delivery_base_head`, create exactly one complete delivery commit containing implementation, archived proposal and final evidence at HEAD. Do not amend, squash or reuse execution/audit commits.
+
+    Write `{{.DeliverySummaryPath}}`, the current run's `delivery-summary.md`. Include a `Final review` section.

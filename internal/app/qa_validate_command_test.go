@@ -1,0 +1,179 @@
+// Package app tests the QA artifact validation CLI.
+package app
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/DeeliN221/specrelay/internal/acceptance"
+)
+
+// TestValidateQACommandAcceptsCleanCoveredArtifact verifies the CLI accepts a QA artifact that covers acceptance.
+func TestValidateQACommandAcceptsCleanCoveredArtifact(t *testing.T) {
+	dir := t.TempDir()
+	qaPath := filepath.Join(dir, "qa-1.json")
+	acceptancePath := filepath.Join(dir, "acceptance.json")
+	writeTestFile(t, acceptancePath, qaCommandAcceptanceJSON())
+	writeTestFile(t, qaPath, qaCommandCleanJSON())
+
+	var stdout bytes.Buffer
+	err := runValidateQAArtifact([]string{"--artifact", qaPath, "--acceptance", acceptancePath, "--json"}, &stdout)
+	if err != nil {
+		t.Fatalf("validate-qa should accept covered clean QA artifact: %v", err)
+	}
+	output := stdout.String()
+	for _, want := range []string{`"valid":true`, `"decision":"clean"`, `"acceptance_matrix":2`} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("validate-qa JSON output missing %q: %s", want, output)
+		}
+	}
+}
+
+// TestValidateQACommandRejectsMissingAcceptanceMatrixCoverage verifies clean QA cannot skip required evidence.
+func TestValidateQACommandRejectsMissingAcceptanceMatrixCoverage(t *testing.T) {
+	dir := t.TempDir()
+	qaPath := filepath.Join(dir, "qa-1.json")
+	acceptancePath := filepath.Join(dir, "acceptance.json")
+	writeTestFile(t, acceptancePath, qaCommandAcceptanceJSON())
+	writeTestFile(t, qaPath, qaCommandMissingEvidenceJSON())
+
+	var stdout bytes.Buffer
+	err := runValidateQAArtifact([]string{"--artifact", qaPath, "--acceptance", acceptancePath, "--json"}, &stdout)
+	if err == nil {
+		t.Fatal("validate-qa should reject clean QA missing acceptance evidence coverage")
+	}
+	output := stdout.String()
+	for _, want := range []string{`"valid":false`, `"code":"validationError"`, "clean qa is missing required_evidence acceptance_matrix coverage"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("validate-qa failure output missing %q: %s", want, output)
+		}
+	}
+}
+
+// TestValidateQAAgainstAcceptanceUsesLifecycleRequiredItems verifies QA coverage reuses shared required ids.
+func TestValidateQAAgainstAcceptanceUsesLifecycleRequiredItems(t *testing.T) {
+	dir := t.TempDir()
+	acceptancePath := filepath.Join(dir, "acceptance.json")
+	writeTestFile(t, acceptancePath, qaCommandAcceptanceJSON())
+	contract, err := ReadAcceptance(acceptancePath)
+	if err != nil {
+		t.Fatalf("parse acceptance fixture: %v", err)
+	}
+	qa := QA{
+		Summary:  "QA covers acceptance",
+		Decision: "clean",
+		Evidence: []string{"runtime evidence: test-results/qa-command/contract.log"},
+		AcceptanceMatrix: []AcceptanceResult{
+			{ID: "qa-command-contract", Status: "passed", Artifact: "docs/changes/99-demo/tests/qa-command.sh", Evidence: "test passed"},
+			{ID: "qa-command-runtime-log", Status: "passed", Artifact: "test-results/qa-command/contract.log", Evidence: "runtime log present"},
+		},
+	}
+	if err := ValidateQAAgainstAcceptance(qa, contract); err != nil {
+		t.Fatalf("expected lifecycle required item set to pass QA coverage: %v", err)
+	}
+}
+
+func TestValidateQARequiresUserVisibleDeliveryObservation(t *testing.T) {
+	// TestValidateQARequiresUserVisibleDeliveryObservation prevents technical pass text from becoming delivery proof.
+	contract, err := acceptance.Parse([]byte(repairDAGAcceptanceJSON()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	qa := cleanRepairDAGQA()
+	qa.UserAcceptance = nil
+	if err := ValidateQAAgainstAcceptance(qa, contract); err == nil || !strings.Contains(err.Error(), "is missing user acceptance scenario") {
+		t.Fatalf("expected missing user observation rejection, got %v", err)
+	}
+
+	qa = cleanRepairDAGQA()
+	qa.UserAcceptance[0].Observed = "go test ./internal/app"
+	if err := ValidateQAAgainstAcceptance(qa, contract); err == nil || !strings.Contains(err.Error(), "must not contain only test results") {
+		t.Fatalf("expected command-only user observation rejection, got %v", err)
+	}
+}
+
+// writeTestFile writes a test fixture file and fails fast on filesystem errors.
+func writeTestFile(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// qaCommandAcceptanceJSON returns a strict acceptance contract used by validate-qa tests.
+func qaCommandAcceptanceJSON() string {
+	return `{
+  "summary": "validate qa command contract",
+  "coverage": [
+    {
+      "spec": "需求：QA artifact 自校验 / 场景：clean QA 覆盖测试和运行证据",
+      "tests": ["qa-command-contract"],
+      "evidence": ["qa-command-runtime-log"],
+      "risk": ""
+    }
+  ],
+  "required_tests": [
+    {
+      "id": "qa-command-contract",
+      "source": "change_contract",
+      "path": "docs/changes/99-demo/tests/qa-command.sh",
+      "command": "bash docs/changes/99-demo/tests/qa-command.sh",
+      "purpose": "prove validate-qa command accepts covered QA artifacts",
+      "assertions": ["validate-qa returns valid true only when clean QA covers required tests and runtime evidence"]
+    }
+  ],
+  "required_evidence": [
+    {
+      "id": "qa-command-runtime-log",
+      "kind": "runtime_log",
+      "path": "test-results/qa-command/contract.log",
+      "purpose": "runtime log generated by qa-command-contract"
+    }
+  ]
+}`
+}
+
+// qaCommandCleanJSON returns a clean QA artifact with complete acceptance_matrix coverage.
+func qaCommandCleanJSON() string {
+	return `{
+  "summary": "QA artifact covers the acceptance contract",
+  "decision": "clean",
+  "evidence": ["runtime evidence: test-results/qa-command/contract.log"],
+  "findings": [],
+  "acceptance_matrix": [
+    {
+      "id": "qa-command-contract",
+      "status": "passed",
+      "artifact": "docs/changes/99-demo/tests/qa-command.sh",
+      "evidence": "validate-qa command contract passed"
+    },
+    {
+      "id": "qa-command-runtime-log",
+      "status": "passed",
+      "artifact": "test-results/qa-command/contract.log",
+      "evidence": "runtime log records validate-qa proof"
+    }
+  ]
+}`
+}
+
+// qaCommandMissingEvidenceJSON returns a clean QA artifact missing required evidence coverage.
+func qaCommandMissingEvidenceJSON() string {
+	return `{
+  "summary": "QA artifact misses evidence coverage",
+  "decision": "clean",
+  "evidence": ["runtime evidence: test-results/qa-command/contract.log"],
+  "findings": [],
+  "acceptance_matrix": [
+    {
+      "id": "qa-command-contract",
+      "status": "passed",
+      "artifact": "docs/changes/99-demo/tests/qa-command.sh",
+      "evidence": "validate-qa command contract passed"
+    }
+  ]
+}`
+}

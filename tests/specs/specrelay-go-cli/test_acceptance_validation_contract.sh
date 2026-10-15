@@ -1,0 +1,275 @@
+#!/usr/bin/env bash
+# Sources: Proposal 2, Proposal 21, Proposal 39
+# Verify acceptance validation contract.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+cd "$repo_root"
+specrelay="$tmp/specrelay"
+go build -o "$specrelay" ./cmd/specrelay
+
+project="$tmp/project"
+change="1-统一验收合同"
+change_dir="$project/docs/changes/$change"
+mkdir -p "$change_dir/tests"
+
+cat >"$change_dir/brief.md" <<'MD'
+# 统一验收合同
+
+## 用户原始需求
+
+验证 specrelay validate 接受当前 specrelay flow 允许的验收合同格式。
+MD
+
+cat >"$change_dir/proposal.md" <<'MD'
+# 统一验收合同
+
+## 背景
+
+执行器在 sealed run 前需要验收合同。
+MD
+
+cat >"$change_dir/design.md" <<'MD'
+# 设计
+
+使用当前 specrelay flow 已允许的 acceptance.json 字段作为 specrelay validate 的正式校验对象。
+MD
+
+cat >"$change_dir/spec.md" <<'MD'
+# 规格
+
+### 需求：统一验收合同
+
+系统必须在提案进入执行前校验验收合同。
+
+#### 场景：合法合同通过
+
+- **当** 用户运行 specrelay validate
+- **则** 当前 specrelay flow 允许的 acceptance.json 格式通过校验
+MD
+
+cat >"$change_dir/tests/merge_contract_test.sh" <<'SH'
+#!/usr/bin/env bash
+# Real proposal contract entry: verify acceptance artifacts exist alongside the proposal.
+set -euo pipefail
+test -s docs/changes/1-统一验收合同/acceptance.json
+mkdir -p test-results
+echo "validate-json" > test-results/specrelay-validate-valid.json
+SH
+
+cat >"$change_dir/acceptance.json" <<'JSON'
+{
+  "summary": "验证 specrelay validate 接受当前 specrelay flow 允许的验收合同格式",
+  "coverage": [
+    {
+      "spec": "需求：统一验收合同 / 场景：合法合同通过",
+      "tests": ["sample-contract"],
+      "evidence": ["validate-json"],
+      "risk": ""
+    }
+  ],
+  "required_tests": [
+    {
+      "id": "sample-contract",
+      "source": "change_contract",
+      "path": "docs/changes/1-统一验收合同/tests/merge_contract_test.sh",
+      "command": "bash docs/changes/1-统一验收合同/tests/merge_contract_test.sh",
+      "purpose": "证明 change 自带契约测试入口被验收合同引用并生成 validate-json",
+      "assertions": [
+        "acceptance.json 随 change 落盘",
+        "测试生成 validate-json 到 test-results/specrelay-validate-valid.json"
+      ],
+      "expected_initial_failure": "缺少 acceptance.json 时测试应失败"
+    }
+  ],
+  "required_evidence": [
+    {
+      "id": "validate-json",
+      "kind": "runtime_log",
+      "path": "test-results/specrelay-validate-valid.json",
+      "purpose": "记录 specrelay validate 对当前 specrelay flow 格式 acceptance.json 的校验结果"
+    }
+  ]
+}
+JSON
+
+if ! (cd "$project" && "$specrelay" validate "$change" --json) >"$tmp/valid.json" 2>"$tmp/valid.err"; then
+  cat "$tmp/valid.err" >&2
+  cat "$tmp/valid.json" >&2
+  exit 1
+fi
+grep -q '"valid": true' "$tmp/valid.json"
+grep -q '"acceptance.json"' "$tmp/valid.json"
+
+mv "$change_dir/acceptance.json" "$change_dir/acceptance.json.bak"
+if (cd "$project" && "$specrelay" validate "$change" --json) >"$tmp/missing.json" 2>"$tmp/missing.err"; then
+  echo "Validation must reject a change missing acceptance.json" >&2
+  exit 1
+fi
+grep -qi 'acceptance' "$tmp/missing.err" "$tmp/missing.json"
+mv "$change_dir/acceptance.json.bak" "$change_dir/acceptance.json"
+
+cat >"$change_dir/acceptance.json" <<'JSON'
+{
+  "summary": "包含验收矩阵、断言和预期初始失败",
+  "coverage": [
+    {
+      "spec": "需求：统一验收合同 / 场景：合法合同通过",
+      "tests": ["sample-contract"],
+      "evidence": ["validate-json"],
+      "risk": ""
+    }
+  ],
+  "required_tests": [
+    {
+      "id": "sample-contract",
+      "source": "change_contract",
+      "path": "docs/changes/1-统一验收合同/tests/merge_contract_test.sh",
+      "command": "bash docs/changes/1-统一验收合同/tests/merge_contract_test.sh",
+      "purpose": "证明 change 自带契约测试入口被验收合同引用",
+      "assertions": [
+        "acceptance.json 随 change 落盘",
+        "契约测试路径能由命令直接执行"
+      ],
+      "expected_initial_failure": "缺少 acceptance.json 时测试应失败"
+    }
+  ],
+  "required_evidence": [
+    {
+      "id": "validate-json",
+      "kind": "runtime_log",
+      "path": "test-results/specrelay-validate-valid.json",
+      "purpose": "记录 specrelay validate 对当前 specrelay flow 格式 acceptance.json 的校验结果"
+    }
+  ]
+}
+JSON
+(cd "$project" && "$specrelay" validate "$change" --json) >"$tmp/rich.json"
+grep -q '"valid": true' "$tmp/rich.json"
+
+if ! rg -n 'LifecycleDiagnostic|LifecycleResult|ValidateLifecycle|BuildLifecycle' "$repo_root/internal/acceptance" >"$tmp/lifecycle-symbols.log"; then
+  echo "internal/acceptance lacks lifecycle diagnostic boundaries" >&2
+  exit 1
+fi
+rg -n 'ValidateLifecycle|BuildLifecycle|Diagnostics|RequiredItems' \
+  "$repo_root/internal/ozcli/cmd_validate.go" \
+  "$repo_root/internal/app/acceptance_preflight.go" \
+  "$repo_root/internal/app/acceptance_run.go" \
+  "$repo_root/internal/app/qa.go" >"$tmp/lifecycle-callers.log"
+
+(
+  cd "$project"
+  git init >/dev/null
+  git config user.email "specrelay-test@example.com"
+  git config user.name "specrelay test"
+  git add docs
+  git commit -m init >/dev/null
+)
+(cd "$project" && "$specrelay" flow run-acceptance --change "$change" --json) >"$tmp/run-acceptance.json"
+python3 - "$tmp/run-acceptance.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    payload = json.load(fh)
+
+if not payload.get("valid") or payload.get("status") != "passed":
+    raise SystemExit(f"run-acceptance did not pass: {payload!r}")
+
+coverage = payload.get("coverage") or []
+producers = payload.get("producers") or []
+has_coverage = any(
+    "sample-contract" in item.get("tests", [])
+    and "validate-json" in item.get("evidence", [])
+    for item in coverage
+)
+has_producer = any(
+    item.get("evidence_id") == "validate-json"
+    and "sample-contract" in item.get("tests", [])
+    and item.get("verified") is True
+    for item in producers
+)
+if not has_coverage or not has_producer:
+    raise SystemExit(f"missing lifecycle trace: coverage={coverage!r} producers={producers!r}")
+PY
+
+cat >"$change_dir/acceptance.json" <<'JSON'
+{
+  "summary": "coverage 引用未知测试必须失败",
+  "coverage": [
+    {
+      "spec": "需求：统一验收合同 / 场景：合法合同通过",
+      "tests": ["missing-contract"],
+      "evidence": [],
+      "risk": "缺少证据"
+    }
+  ],
+  "required_tests": [
+    {
+      "id": "sample-contract",
+      "source": "change_contract",
+      "path": "docs/changes/1-统一验收合同/tests/merge_contract_test.sh",
+      "command": "bash docs/changes/1-统一验收合同/tests/merge_contract_test.sh",
+      "purpose": "证明 change 自带契约测试入口被验收合同引用",
+      "assertions": [
+        "acceptance.json 随 change 落盘"
+      ]
+    }
+  ],
+  "required_evidence": []
+}
+JSON
+if (cd "$project" && "$specrelay" validate "$change" --json) >"$tmp/bad-ref.json" 2>"$tmp/bad-ref.err"; then
+  echo "Validation must reject coverage referencing undeclared test IDs" >&2
+  exit 1
+fi
+grep -qi 'missing-contract' "$tmp/bad-ref.err" "$tmp/bad-ref.json"
+
+cat >"$change_dir/acceptance.json" <<'JSON'
+{
+  "summary": "未知字段仍必须失败",
+  "unexpected": true,
+  "required_tests": [
+    {
+      "id": "sample-contract",
+      "source": "change_contract",
+      "path": "docs/changes/1-统一验收合同/tests/merge_contract_test.sh",
+      "command": "bash docs/changes/1-统一验收合同/tests/merge_contract_test.sh",
+      "purpose": "证明 change 自带契约测试入口被验收合同引用",
+      "assertions": [
+        "acceptance.json 随 change 落盘"
+      ]
+    }
+  ],
+  "required_evidence": []
+}
+JSON
+if (cd "$project" && "$specrelay" validate "$change" --json) >"$tmp/unknown.json" 2>"$tmp/unknown.err"; then
+  echo "Validation must reject unknown acceptance fields" >&2
+  exit 1
+fi
+grep -qi 'unexpected\|unknown\|acceptance' "$tmp/unknown.err" "$tmp/unknown.json"
+
+producer_log="$repo_root/test-results/specs/specrelay-go-cli/shared-producer-contract.log"
+mkdir -p "$(dirname "$producer_log")"
+: >"$producer_log"
+echo "evidence id: shared-producer-contract-log" | tee -a "$producer_log"
+echo "evidence path: $producer_log" | tee -a "$producer_log"
+echo "test path: tests/specs/specrelay-go-cli/test_acceptance_validation_contract.sh" | tee -a "$producer_log"
+
+if ! rg -n "func .*Producer.*(Finding|Evidence|Has)|func .*Evidence.*Producer" "$repo_root/internal/acceptance" | tee -a "$producer_log" | grep -q .; then
+  echo "internal/acceptance lacks the shared producer tracing API" | tee -a "$producer_log"
+  exit 1
+fi
+
+if rg -n "func acceptance(EvidenceHasProducer|TestMentionsEvidence|TestScriptProducesEvidence|ProducerCandidatePaths|ProducerScriptMentionsTest|EvidenceNeedles|TextMentionsAny)|func stringSliceContains" "$repo_root/cmd/specrelay" "$repo_root/internal/app" | tee -a "$producer_log" | grep -q .; then
+  echo "cmd/specrelay or internal/app retains local acceptance producer helpers" | tee -a "$producer_log"
+  exit 1
+fi
+
+go test ./internal/acceptance ./internal/app ./internal/ozcli ./cmd/specrelay -count=1 2>&1 | tee -a "$producer_log"
+
+echo "PASS"

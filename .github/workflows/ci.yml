@@ -1,0 +1,35 @@
+# This workflow runs the repository test gate for regular pushes and PRs.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build local CLIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_dir="${RUNNER_TEMP}/specrelay-bin"
+          mkdir -p "$install_dir"
+          go build -o "$install_dir/specrelay" ./cmd/specrelay
+          echo "$install_dir" >> "$GITHUB_PATH"
+          "$install_dir/specrelay" --version
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Validate release notes
+        run: bash scripts/extract-release-notes.sh CHANGELOG.md v0.0.0-ci "${RUNNER_TEMP}/release-notes.md"

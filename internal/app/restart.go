@@ -1,0 +1,444 @@
+// Package app implements explicit restart of stopped sealed workflows and batches.
+package app
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+// restartHuman resolves specrelay flow restart's human aliases and starts the selected worker detached.
+func restartHuman(ctx context.Context, stdout io.Writer, repo string, engine *Engine, args []string) error {
+	_ = ctx
+	kind, ref, err := ResolveRestartTarget(repo, args)
+	if err != nil {
+		return err
+	}
+	switch kind {
+	case "batch":
+		if err := engine.RestartBatchDetached(ref.ID); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Restarted batch %s\n", ref.Alias)
+		return nil
+	case "run":
+		if err := engine.RestartRunDetached(ref.ID, true); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Restarted workflow %s\n", ref.Alias)
+		return nil
+	default:
+		return fmt.Errorf("No task available to restart")
+	}
+}
+
+// ResolveRestartTarget maps restart arguments to a restartable batch or run.
+func ResolveRestartTarget(repo string, args []string) (kind string, ref StatusRef, err error) {
+	if len(args) == 0 {
+		batches, err := ListBatchRefs(repo)
+		if err != nil {
+			return "", StatusRef{}, err
+		}
+		for _, batchRef := range batches {
+			batch, err := loadBatchState(repo, batchRef.ID)
+			if err == nil && isRestartableBatch(repo, batch) {
+				return "batch", batchRef, nil
+			}
+		}
+		runs, err := ListRunRefs(repo)
+		if err != nil {
+			return "", StatusRef{}, err
+		}
+		for _, runRef := range runs {
+			state, err := loadState(repo, runRef.ID)
+			if err == nil && state.BatchID == "" && isRestartableRunCandidate(repo, state) {
+				return "run", runRef, nil
+			}
+		}
+		return "", StatusRef{}, fmt.Errorf("No task available to restart")
+	}
+	if len(args) != 1 {
+		return "", StatusRef{}, fmt.Errorf("Usage: specrelay flow restart [-bN|-wN]")
+	}
+	switch {
+	case strings.HasPrefix(args[0], "-b"):
+		ref, err := resolveIndexedRef(repo, args[0], "-b", ListBatchRefs)
+		return "batch", ref, err
+	case strings.HasPrefix(args[0], "-w"):
+		ref, err := resolveIndexedRef(repo, args[0], "-w", ListRunRefs)
+		return "run", ref, err
+	default:
+		return "", StatusRef{}, fmt.Errorf("Usage: specrelay flow restart [-bN|-wN]")
+	}
+}
+
+// RestartRunDetached resets a recoverable run and starts a detached worker.
+func (e *Engine) RestartRunDetached(runID string, allowUnknownLock bool) error {
+	state, err := loadState(e.Repo, runID)
+	if err != nil {
+		return err
+	}
+	rollback, err := captureDetachedRunRollback(e.Repo, state)
+	if err != nil {
+		return err
+	}
+	if _, err := e.prepareRestartRun(runID, allowUnknownLock); err != nil {
+		return restoreStateAfterDetachedPreparationFailure(e.Repo, rollback, "restart", err)
+	}
+	preparedHash, err := detachedRunStateHash(e.Repo, runID)
+	if err != nil {
+		return restoreStateAfterDetachedPreparationFailure(e.Repo, rollback, "restart", err)
+	}
+	if err := startDetachedCommand(e.Repo, runID); err != nil {
+		return restoreStateAfterDetachedFailure(e.Repo, rollback, preparedHash, "restart", err)
+	}
+	return nil
+}
+
+// RestartRunJSON resets a recoverable run, emits its DTO, then continues inline.
+func (e *Engine) RestartRunJSON(ctx context.Context, runID string, stdout io.Writer) error {
+	rollback, err := loadState(e.Repo, runID)
+	if err != nil {
+		_ = writeFailedRunnerError(stdout, runID, err)
+		return err
+	}
+	if _, err := e.prepareRestartRun(runID, false); err != nil {
+		_ = writeFailedRunnerError(stdout, runID, err)
+		return err
+	}
+	if err := e.resumeRunWithRollback(ctx, runID, false, stdout, &rollback); err != nil {
+		if isRunnerStartupWriteError(err) {
+			return err
+		}
+		if state, loadErr := loadState(e.Repo, runID); loadErr == nil {
+			if isRunLockedError(err) {
+				state.Error = err.Error()
+				_ = writeRunnerState(stdout, state)
+				return err
+			}
+			state = failedState(state, err)
+			_ = saveState(e.Repo, state)
+			_ = writeFailedRunnerState(stdout, state, err)
+		} else {
+			_ = writeFailedRunnerError(stdout, runID, err)
+		}
+		return err
+	}
+	return nil
+}
+
+// prepareRestartRun validates and rewrites only resumable run state.
+func (e *Engine) prepareRestartRun(runID string, allowUnknownLock bool) (State, error) {
+	state, err := loadState(e.Repo, runID)
+	if err != nil {
+		return State{}, err
+	}
+	if err := ensureRunRestartable(state); err != nil {
+		return State{}, err
+	}
+	if err := clearRestartLock(e.Repo, runID, allowUnknownLock); err != nil {
+		return State{}, err
+	}
+	if err := e.validateResumePrerequisites(&state); err != nil {
+		return State{}, err
+	}
+	if state.Status == statusBlockedEnvironment || state.Status == statusBlockedStalled {
+		if err := e.prepareQualityLoopResume(&state, true); err != nil {
+			return State{}, err
+		}
+	}
+	state.Status = statusRunning
+	state.Error = ""
+	if state.Stage == "" || state.Stage == statusInterrupted || state.Stage == statusAcceptanceContractBlocked {
+		state.Stage = "execution"
+	}
+	if state.Stages != nil && state.Stage != "" && state.Stages[state.Stage] == statusInterrupted {
+		delete(state.Stages, state.Stage)
+	}
+	if err := saveState(e.Repo, state); err != nil {
+		return State{}, err
+	}
+	return state, nil
+}
+
+// RestartBatchDetached resets a recoverable batch and starts a detached batch worker.
+func (e *Engine) RestartBatchDetached(batchID string) error {
+	batchRollback, runRollback, err := e.detachedBatchRollback(batchID)
+	if err != nil {
+		return err
+	}
+	if err := e.prepareRestartBatch(batchID, true); err != nil {
+		batchHash, runHash, hashErr := detachedBatchPreparedHashes(e.Repo, batchRollback, runRollback)
+		if hashErr != nil {
+			return errors.Join(err, fmt.Errorf("read batch preparation rollback generation failed: %w", hashErr))
+		}
+		return restoreDetachedBatchFailure(e.Repo, batchRollback, runRollback, batchHash, runHash, err)
+	}
+	batchHash, runHash, err := detachedBatchPreparedHashes(e.Repo, batchRollback, runRollback)
+	if err != nil {
+		return err
+	}
+	if err := startDetachedBatchCommand(e.Repo, batchID); err != nil {
+		return restoreDetachedBatchFailure(e.Repo, batchRollback, runRollback, batchHash, runHash, err)
+	}
+	return nil
+}
+
+// detachedBatchRollback snapshots the batch and its current run before restart preparation.
+func (e *Engine) detachedBatchRollback(batchID string) (BatchState, *detachedRunRollback, error) {
+	batch, err := loadBatchState(e.Repo, batchID)
+	if err != nil {
+		return BatchState{}, nil, err
+	}
+	runID := restartBatchCurrentRunID(batch)
+	if runID == "" {
+		return batch, nil, nil
+	}
+	state, err := loadState(e.Repo, runID)
+	if err != nil {
+		return BatchState{}, nil, err
+	}
+	rollback, err := captureDetachedRunRollback(e.Repo, state)
+	if err != nil {
+		return BatchState{}, nil, err
+	}
+	return batch, &rollback, nil
+}
+
+// detachedBatchPreparedHashes binds compensation to the exact prepared batch and run generations.
+func detachedBatchPreparedHashes(
+	repo string,
+	batch BatchState,
+	run *detachedRunRollback,
+) (string, string, error) {
+	batchData, err := os.ReadFile(filepath.Join(batchDir(repo, batch.BatchID), "state.json"))
+	if err != nil {
+		return "", "", err
+	}
+	runHash := ""
+	if run != nil {
+		runHash, err = detachedRunStateHash(repo, run.State.RunID)
+		if err != nil {
+			return "", "", err
+		}
+	}
+	return qualityHashStrings(string(batchData)), runHash, nil
+}
+
+// restoreDetachedBatchFailure compensates batch/run state only when both prepared generations are unchanged.
+func restoreDetachedBatchFailure(
+	repo string,
+	batchRollback BatchState,
+	runRollback *detachedRunRollback,
+	expectedBatchHash string,
+	expectedRunHash string,
+	operationErr error,
+) error {
+	if detachedWorkerProcessStarted(operationErr) {
+		return operationErr
+	}
+	lockPath := batchDir(repo, batchRollback.BatchID) + ".lock"
+	batchUnlock, err := flockLock(lockPath)
+	if err != nil {
+		return errors.Join(operationErr, fmt.Errorf("acquire batch rollback lease failed: %w", err))
+	}
+	defer func() { _ = batchUnlock() }()
+	currentBatch, err := os.ReadFile(filepath.Join(batchDir(repo, batchRollback.BatchID), "state.json"))
+	if err != nil {
+		return errors.Join(operationErr, fmt.Errorf("read batch rollback generation failed: %w", err))
+	}
+	if expectedBatchHash == "" || qualityHashStrings(string(currentBatch)) != expectedBatchHash {
+		return errors.Join(operationErr, fmt.Errorf("batch state generation changed before background launch; refusing stale rollback"))
+	}
+	if runRollback != nil {
+		runUnlock, lockErr := acquireLock(repo, runRollback.State.RunID)
+		if lockErr != nil {
+			return errors.Join(operationErr, fmt.Errorf("batch current run has an active lease; refusing stale rollback: %w", lockErr))
+		}
+		defer runUnlock()
+		restored, restoreErr := restoreDetachedRunIfCurrent(repo, *runRollback, expectedRunHash)
+		if restoreErr != nil {
+			return errors.Join(operationErr, fmt.Errorf("restore batch current run failed: %w", restoreErr))
+		}
+		if !restored {
+			return errors.Join(operationErr, fmt.Errorf("batch current run state generation changed; refusing stale rollback"))
+		}
+	}
+	if err := saveBatchState(repo, batchRollback); err != nil {
+		return errors.Join(operationErr, fmt.Errorf("restore batch state before background launch failed: %w", err))
+	}
+	return operationErr
+}
+
+// RestartBatchJSON resets a recoverable batch and continues it inline.
+func (e *Engine) RestartBatchJSON(ctx context.Context, batchID string) error {
+	if err := e.prepareRestartBatch(batchID, false); err != nil {
+		return err
+	}
+	return withBatchWorkerLifecycle(e.Repo, batchID, func() error {
+		return e.RunBatch(ctx, batchID)
+	})
+}
+
+// prepareRestartBatch validates the current queue item before restoring batch state.
+func (e *Engine) prepareRestartBatch(batchID string, allowUnknownLock bool) error {
+	batch, err := loadBatchState(e.Repo, batchID)
+	if err != nil {
+		return err
+	}
+	workerLock, err := batchWorkerLockStatus(e.Repo, batchID)
+	if err != nil {
+		return err
+	}
+	if workerLock == lockStatusActive {
+		return fmt.Errorf("batch %s still has an active worker; cannot restart", batchID)
+	}
+	if workerLock == lockStatusUnknown {
+		return fmt.Errorf("batch %s:  worker lock is uncertain; cannot restart", batchID)
+	}
+	switch batch.Status {
+	case batchStatusRunning:
+	case batchStatusFailed:
+	default:
+		return fmt.Errorf("batch %s reached %s; cannot restart automatically", batchID, batch.Status)
+	}
+	if batch.CurrentIndex < len(batch.Changes) {
+		changeName := batch.Changes[batch.CurrentIndex]
+		runID := batch.RunIDs[changeName]
+		if runID == "" {
+			runID = batch.FailedRunID
+		}
+		if runID != "" {
+			if state, err := loadState(e.Repo, runID); err == nil && batch.Status == batchStatusRunning && state.Status == statusDone {
+				return nil
+			}
+			if batch.Status == batchStatusFailed {
+				// For failed batches: check lock and run state, then clear association
+				// so batch worker creates a fresh run for the current change.
+				state, err := loadState(e.Repo, runID)
+				if err != nil {
+					prefix := ""
+					if changeName != "" {
+						prefix = changeName + ": "
+					}
+					return fmt.Errorf("%sworkflow record is missing; automatic recovery cannot be determined", prefix)
+				}
+				if err := ensureRunRestartable(state); err != nil {
+					return err
+				}
+				if err := clearRestartLock(e.Repo, runID, allowUnknownLock); err != nil {
+					return err
+				}
+			} else {
+				if _, err := e.prepareRestartRun(runID, allowUnknownLock); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return withBatchState(e.Repo, batchID, func(b *BatchState) error {
+		b.Status = batchStatusRunning
+		b.FailedChange = ""
+		b.FailedRunID = ""
+		b.Error = ""
+		// For failed batches: clear the current change's run association so
+		// the batch worker creates a fresh run for this change.
+		if b.CurrentIndex < len(b.Changes) && batch.Status == batchStatusFailed {
+			delete(b.RunIDs, b.Changes[b.CurrentIndex])
+		}
+		return nil
+	})
+}
+
+// ensureRunRestartable rejects terminal states that require manual intervention.
+func ensureRunRestartable(state State) error {
+	switch state.Status {
+	case statusFailed, statusInterrupted, statusRunning, statusAcceptanceContractBlocked, statusBlockedEnvironment, statusBlockedStalled:
+		return nil
+	case statusDone:
+		return fmt.Errorf("workflow %s is complete; cannot restart", state.RunID)
+	case statusBlocked, statusValidationBlocked, statusAborted, "aborted":
+		return fmt.Errorf("workflow %s reached %s; cannot restart automatically", state.RunID, state.Status)
+	default:
+		return fmt.Errorf("workflow %s with status %s cannot restart", state.RunID, state.Status)
+	}
+}
+
+func isRestartableRunState(state State) bool {
+	return ensureRunRestartable(state) == nil
+}
+
+// isRestartableRunCandidate excludes live work from implicit restart selection.
+func isRestartableRunCandidate(repo string, state State) bool {
+	if !isRestartableRunState(state) {
+		return false
+	}
+	active, err := restartLockActive(repo, state.RunID)
+	return err == nil && !active
+}
+
+// isRestartableBatch reports whether a batch can be chosen by default restart.
+func isRestartableBatch(repo string, batch BatchState) bool {
+	runID := restartBatchCurrentRunID(batch)
+	if batch.Status == batchStatusRunning {
+		if runID == "" {
+			return true
+		}
+		active, err := restartLockActive(repo, runID)
+		return err == nil && !active
+	}
+	if batch.Status != batchStatusFailed {
+		return false
+	}
+	if batch.CurrentIndex >= len(batch.Changes) {
+		return true
+	}
+	if runID == "" {
+		return true
+	}
+	state, err := loadState(repo, runID)
+	return err == nil && isRestartableRunCandidate(repo, state)
+}
+
+// restartBatchCurrentRunID returns the current durable run attached to a batch.
+func restartBatchCurrentRunID(batch BatchState) string {
+	if batch.CurrentIndex >= len(batch.Changes) {
+		return ""
+	}
+	runID := batch.RunIDs[batch.Changes[batch.CurrentIndex]]
+	if runID == "" {
+		runID = batch.FailedRunID
+	}
+	return runID
+}
+
+// restartLockActive classifies only active locks as live work for default selection.
+func restartLockActive(repo, runID string) (bool, error) {
+	status, err := lockFileStatus(repo, runID, runtime.GOOS)
+	if err != nil {
+		return false, err
+	}
+	return status == lockStatusActive, nil
+}
+
+// clearRestartLock removes only stale or explicitly allowed unknown locks.
+func clearRestartLock(repo, runID string, allowUnknownLock bool) error {
+	status, err := clearInactiveRunLock(repo, runID, runtime.GOOS, allowUnknownLock)
+	if err != nil {
+		return err
+	}
+	switch status {
+	case lockStatusActive:
+		return newRunLockedError(runID)
+	case lockStatusUnknown:
+		if !allowUnknownLock {
+			return fmt.Errorf("run %s has an uncertain lock; resume or stop it through the interactive menu", runID)
+		}
+	}
+	return nil
+}

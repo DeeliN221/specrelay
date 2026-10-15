@@ -1,0 +1,312 @@
+// Package app renders compact status view rows for terminal output.
+package app
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+// compactStatusLines renders the fixed-column human workflow rows for status and watch.
+func compactStatusLines(view statusView) []string {
+	rows := compactVisibleRows(view.Rows)
+	widths := compactColumnWidths(rows)
+	var lines []string
+	for _, row := range rows {
+		prefix := strings.Repeat(" ", row.Indent)
+		name := compactHumanRowName(row)
+		lines = append(lines, fmt.Sprintf("%s%s %s %s %s",
+			prefix,
+			padStatusColumn(name, widths.name-row.Indent),
+			padStatusColumn(statusText(row.SessionID), widths.session),
+			padStatusColumn(statusText(row.Marker), widths.marker),
+			padStatusColumnLeft(statusDurationText(row.DurationMinutes), widths.duration),
+		))
+	}
+	return lines
+}
+
+type compactColumnWidth struct {
+	name     int
+	session  int
+	marker   int
+	duration int
+}
+
+// compactVisibleRows removes rows that add no signal to the human compact view.
+func compactVisibleRows(rows []statusViewRow) []statusViewRow {
+	out := make([]statusViewRow, 0, len(rows))
+	for _, row := range rows {
+		if row.Kind == "stage" && row.Stage == "planning" && row.SessionID == "" && (row.Marker == "-" || row.Marker == "✓") && row.DurationMinutes == nil {
+			continue
+		}
+		out = append(out, row)
+	}
+	return out
+}
+
+// compactColumnWidths calculates terminal display widths so CJK names align in monospace output.
+func compactColumnWidths(rows []statusViewRow) compactColumnWidth {
+	widths := compactColumnWidth{}
+	for _, row := range rows {
+		name := compactHumanRowName(row)
+		widths.name = max(widths.name, row.Indent+statusDisplayWidth(name))
+		widths.session = max(widths.session, statusDisplayWidth(statusText(row.SessionID)))
+		widths.marker = max(widths.marker, statusDisplayWidth(statusText(row.Marker)))
+		widths.duration = max(widths.duration, statusDisplayWidth(statusDurationText(row.DurationMinutes)))
+	}
+	return widths
+}
+
+// compactHumanRowName shortens only terminal labels while preserving row names in JSON observability.
+func compactHumanRowName(row statusViewRow) string {
+	name := row.Name
+	if row.Kind == "stage" {
+		switch name {
+		case "planning stage":
+			return "plan"
+		case "execution stage":
+			return "execute"
+		case "review stage":
+			return "review"
+		case "repair stage":
+			return "repair"
+		case "testing stage":
+			return "test"
+		case "archive stage":
+			return "archive"
+		}
+	}
+	if row.Kind == "subagent" {
+		return compactHumanSubagentName(row.FullName, name)
+	}
+	if row.Kind == "parallel_group" || row.Kind == "parallel_member" {
+		return "- " + name
+	}
+	return name
+}
+
+// compactHumanSubagentName maps common helper roles to toz-flow-cell status labels.
+func compactHumanSubagentName(fullName, fallback string) string {
+	switch {
+	case strings.Contains(fullName, "CLI/API"):
+		return "CA"
+	case strings.Contains(fullName, "browser"):
+		return "browser"
+	case strings.Contains(fullName, "regression"):
+		return "regression"
+	case strings.Contains(fullName, "evidence"):
+		return "evidence"
+	case strings.Contains(fullName, "goals"):
+		return "goals"
+	case strings.Contains(fullName, "code quality"):
+		return "code"
+	case strings.Contains(fullName, "code"):
+		return "code"
+	case strings.Contains(fullName, "external"):
+		return "external"
+	case strings.Contains(fullName, "test validity"):
+		return "test"
+	case strings.Contains(fullName, "risk"):
+		return "risk"
+	case strings.Contains(fullName, "context"):
+		return "context"
+	}
+	if statusDisplayWidth(fallback) <= 4 {
+		return fallback
+	}
+	runes := []rune(fallback)
+	if len(runes) > 2 {
+		return string(runes[:2])
+	}
+	return fallback
+}
+
+// statusHeaderText renders the proposal line with overall marker and workflow wall time.
+func statusHeaderText(changeName string, view statusView) string {
+	if view.WallMinutes == nil {
+		return fmt.Sprintf("- %s %s -", changeName, compactOverallMarker(view))
+	}
+	return fmt.Sprintf("- %s %s %.2f min", changeName, compactOverallMarker(view), *view.WallMinutes)
+}
+
+// compactOverallMarker reports a one-cell status indicator for the proposal header.
+func compactOverallMarker(view statusView) string {
+	switch view.RunStatus {
+	case statusDone:
+		return "✓"
+	case statusFailed, statusBlocked, statusValidationBlocked, statusAcceptanceContractBlocked,
+		statusBlockedEnvironment, statusBlockedStalled, statusInterrupted, statusStale:
+		return "x"
+	case statusRunning:
+		if view.Indicator != "" {
+			return view.Indicator
+		}
+		return "→"
+	}
+	if view.Indicator != "" {
+		for _, row := range compactVisibleRows(view.Rows) {
+			if strings.Contains(row.Marker, view.Indicator) {
+				return view.Indicator
+			}
+		}
+	}
+	hasRunning := false
+	hasFailed := false
+	hasIncomplete := false
+	for _, row := range compactVisibleRows(view.Rows) {
+		marker := row.Marker
+		if strings.Contains(marker, "x") {
+			hasFailed = true
+		}
+		if strings.Contains(marker, "→") {
+			hasRunning = true
+		}
+		if marker == "-" {
+			hasIncomplete = true
+		}
+	}
+	switch {
+	case hasFailed:
+		return "x"
+	case hasRunning:
+		return "→"
+	case !hasIncomplete:
+		return "✓"
+	default:
+		return "-"
+	}
+}
+
+// statusCountedMarker compacts repeated completed rounds as ✓N before active or failed suffixes.
+func statusCountedMarker(completed int, running, failed bool) string {
+	var marker strings.Builder
+	if completed == 1 {
+		marker.WriteString("✓")
+	} else if completed > 1 {
+		marker.WriteString("✓")
+		marker.WriteString(strconv.Itoa(completed))
+	}
+	if running {
+		marker.WriteString("→")
+	}
+	if failed {
+		marker.WriteString("x")
+	}
+	if marker.Len() == 0 {
+		return "-"
+	}
+	return marker.String()
+}
+
+// padStatusColumn adds spaces based on display width instead of byte length.
+func padStatusColumn(value string, width int) string {
+	padding := width - statusDisplayWidth(value)
+	if padding <= 0 {
+		return value
+	}
+	return value + strings.Repeat(" ", padding)
+}
+
+// padStatusColumnLeft left-pads terminal columns for right-aligned numeric values.
+func padStatusColumnLeft(value string, width int) string {
+	padding := width - statusDisplayWidth(value)
+	if padding <= 0 {
+		return value
+	}
+	return strings.Repeat(" ", padding) + value
+}
+
+// statusDisplayWidth approximates terminal cell width for compact CJK status text.
+func statusDisplayWidth(value string) int {
+	width := 0
+	for _, r := range value {
+		width += statusRuneDisplayWidth(r)
+	}
+	return width
+}
+
+// statusRuneDisplayWidth treats CJK ideographs as double-width while keeping status symbols single-width.
+func statusRuneDisplayWidth(r rune) int {
+	switch {
+	case r == 0:
+		return 0
+	case r < 0x20 || (r >= 0x7f && r < 0xa0):
+		return 0
+	case r >= 0x1100 && (r <= 0x115f ||
+		r == 0x2329 || r == 0x232a ||
+		(r >= 0x2e80 && r <= 0xa4cf && r != 0x303f) ||
+		(r >= 0xac00 && r <= 0xd7a3) ||
+		(r >= 0xf900 && r <= 0xfaff) ||
+		(r >= 0xfe10 && r <= 0xfe19) ||
+		(r >= 0xfe30 && r <= 0xfe6f) ||
+		(r >= 0xff00 && r <= 0xff60) ||
+		(r >= 0xffe0 && r <= 0xffe6)):
+		return 2
+	default:
+		return 1
+	}
+}
+
+// statusDurationDecimalColumn returns the display column of the decimal point in one rendered status line.
+func statusDurationDecimalColumn(line string) (int, bool) {
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return 0, false
+	}
+	value := fields[len(fields)-1]
+	decimalIndex := strings.Index(value, ".")
+	if decimalIndex < 0 {
+		return 0, false
+	}
+	index := strings.LastIndex(line, value)
+	if index < 0 {
+		return 0, false
+	}
+	return statusDisplayWidth(line[:index]) + statusDisplayWidth(value[:decimalIndex]), true
+}
+
+// statusDurationDecimalColumnsAligned reports whether every decimal duration ends at the same decimal column.
+func statusDurationDecimalColumnsAligned(lines []string) bool {
+	column := -1
+	for _, line := range lines {
+		next, ok := statusDurationDecimalColumn(line)
+		if !ok {
+			continue
+		}
+		if column < 0 {
+			column = next
+			continue
+		}
+		if next != column {
+			return false
+		}
+	}
+	return column >= 0
+}
+
+// statusText renders an empty field as the required dash column.
+func statusText(value string) string {
+	if value == "" {
+		return "-"
+	}
+	return value
+}
+
+// statusDurationText renders minutes as two decimal places, or a dash when absent.
+func statusDurationText(minutes *float64) string {
+	if minutes == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%.2f", *minutes)
+}
+
+// isASCII reports whether a custom helper name is already a compact ASCII token.
+func isASCII(value string) bool {
+	for _, r := range value {
+		if r > 127 {
+			return false
+		}
+	}
+	return true
+}

@@ -1,0 +1,1102 @@
+// Package ozcli tests the user-visible specrelay CLI workflow with real filesystem projects.
+package ozcli
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/DeeliN221/specrelay/internal/acceptance"
+	"github.com/DeeliN221/specrelay/internal/testsupport"
+)
+
+type cliResult struct {
+	code   int
+	stdout string
+	stderr string
+}
+
+func runCLI(t *testing.T, cwd string, args ...string) cliResult {
+	// runCLI executes the CLI in-process from a temporary project directory.
+	t.Helper()
+	oldwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(cwd); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.Chdir(oldwd); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	var stdout, stderr bytes.Buffer
+	code := (&cli{
+		out: &stdout,
+		err: &stderr,
+		now: func() time.Time {
+			return time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
+		},
+	}).run(args)
+	return cliResult{code: code, stdout: stdout.String(), stderr: stderr.String()}
+}
+
+func newProject(t *testing.T) string {
+	// newProject creates the minimum docs tree specrelay expects in user projects.
+	t.Helper()
+	dir := t.TempDir()
+	if output, err := exec.Command("git", "-C", dir, "init", "--quiet").CombinedOutput(); err != nil {
+		t.Fatalf("initialize project repository: %v: %s", err, output)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "docs", "changes", "archive"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func writeValidChange(t *testing.T, project, change string) {
+	// writeValidChange creates a complete change with one real Go test file.
+	t.Helper()
+	dir := filepath.Join(project, "docs", "changes", change)
+	if err := os.MkdirAll(filepath.Join(dir, "tests"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"brief.md":    "# 归档测试\n\n用户简报说明归档测试随提案保留。\n",
+		"proposal.md": "## 背景\n需要可追溯变更。\n\n## 变更内容\n- 实现 specrelay。\n",
+		"design.md":   "## 背景\n固定工作流。\n\n## 决策\nCLI 先归档，智能体再合并主规格。\n",
+		"spec.md":     "## 新增需求\n\n### 需求：归档测试\n\n系统必须保留测试来源。\n\n#### 场景：归档包含测试\n\n- **当** 用户归档提案\n- **则** 提案测试随归档提案保留，测试文件见 `tests/archive_test.go`\n",
+		"acceptance.json": `{
+	  "summary": "验证归档测试随提案保留",
+	  "coverage": [
+	    {
+	      "spec": "需求：归档测试 / 场景：归档包含测试",
+	      "tests": ["archive-test"],
+	      "evidence": ["archive-log", "archive-demo-video"],
+	      "risk": "运行日志只证明测试命令执行结果"
+	    }
+	  ],
+	  "required_tests": [
+	    {
+	      "id": "archive-test",
+	      "source": "change_contract",
+	      "path": "docs/changes/` + change + `/tests/archive_test.go",
+	      "command": "go test docs/changes/` + change + `/tests/archive_test.go",
+	      "purpose": "证明提案包含真实测试入口，并生成 archive-log 与最终演示视频",
+	      "assertions": ["归档后提案测试文件仍随 active change 保留，测试命令写出 test-results/archive.log 与 test-results/archive-demo.webm"]
+	    }
+	  ],
+  "required_evidence": [
+    {
+      "id": "archive-log",
+      "kind": "runtime_log",
+      "path": "test-results/archive.log",
+      "purpose": "展示归档后提案测试仍然存在并可供审核人员追溯"
+    },
+    {
+      "id": "archive-demo-video",
+      "kind": "demo_video",
+      "path": "test-results/archive-demo.webm",
+      "purpose": "演示归档提案的最终用户流程"
+    }
+  ],
+  "submission_evidence": [
+    {
+      "evidence_id": "archive-log",
+      "source_path": "test-results/archive.log",
+      "archive_path": "tests/evidence/proposals/` + change + `/archive.log"
+    },
+    {
+      "evidence_id": "archive-demo-video",
+      "source_path": "test-results/archive-demo.webm",
+      "archive_path": "tests/evidence/proposals/` + change + `/archive-demo.webm"
+    }
+  ],
+  "delivery_report": {
+    "user_benefits": [
+      "用户归档提案后仍能找到原始测试和最终能力演示，方便后续复查。"
+    ],
+    "prerequisites": [
+      "准备一个已经完成实现与测试的有效提案。"
+    ],
+    "scenarios": [
+      {
+        "id": "archive-review",
+        "title": "归档后复查完整交付",
+        "user_value": "审核人员能够从归档提案回看测试来源和最终用户流程。",
+        "steps": [
+          {
+            "action": "归档提案后打开归档目录和最终演示视频。",
+            "expected": "提案测试仍然存在，视频展示完整的最终用户流程。"
+          }
+        ],
+        "evidence_ids": ["archive-log", "archive-demo-video"]
+      }
+    ],
+    "known_limits": [
+      "测试项目只演示归档能力，不包含生产业务数据。"
+    ]
+  }
+}
+`,
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testBody := "package tests\n\nimport \"testing\"\n\n// source: docs/changes/" + change + "/fixtures/input.json\nfunc TestArchivedBehavior(t *testing.T) {}\n"
+	if err := os.WriteFile(filepath.Join(dir, "tests", "archive_test.go"), []byte(testBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for relativePath, body := range map[string]string{
+		"test-results/archive.log":                              "用户场景：归档一个已完成的提案。\n实际操作：打开归档目录并检查提案测试。\n可见结果：测试文件保留，审核人员可以追溯原始验收要求。\n",
+		"tests/evidence/proposals/" + change + "/archive.log":   "用户场景：归档一个已完成的提案。\n实际操作：打开归档目录并检查提案测试。\n可见结果：测试文件保留，审核人员可以追溯原始验收要求。\n",
+		"tests/evidence/proposals/" + change + "/README.md":     "# 归档审核入口\n\n请先阅读 DELIVERY.md，并按用户路径查看演示与结果。\n",
+		"tests/evidence/proposals/" + change + "/manifest.json": `{"version":1,"change":"` + change + `"}`,
+	} {
+		path := filepath.Join(project, filepath.FromSlash(relativePath))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, relativePath := range []string{
+		"test-results/archive-demo.webm",
+		"tests/evidence/proposals/" + change + "/archive-demo.webm",
+	} {
+		path := filepath.Join(project, filepath.FromSlash(relativePath))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, testsupport.ReviewableWebM(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	contract, err := acceptance.Read(filepath.Join(dir, "acceptance.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := acceptance.RenderDeliveryReport(contract, change, []acceptance.DeliveryObservation{{
+		ScenarioID: "archive-review",
+		Observed:   "归档目录保留了提案测试，演示视频完整展示了用户从操作到看到结果的过程。",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(project, "tests", "evidence", "proposals", change, "DELIVERY.md"),
+		report,
+		0o644,
+	); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHelpMentionsOzWithoutNodeTooling(t *testing.T) {
+	// TestHelpMentionsOzWithoutNodeTooling covers the reduced command surface.
+	result := runCLI(t, newProject(t), "--help")
+	if result.code != 0 {
+		t.Fatalf("help failed: %s", result.stderr)
+	}
+	for _, want := range []string{
+		"Daily commands:",
+		"list | l [--json]",
+		"install | i [--global | -g]",
+		"Automation interface:",
+		"create",
+		"status <change> [--json]",
+		"validate <change> [--json]",
+		"archive <change> --yes",
+	} {
+		if !strings.Contains(result.stdout, want) {
+			t.Fatalf("help missing %q:\n%s", want, result.stdout)
+		}
+	}
+	for _, removed := range []string{"Node.js", "pnpm", "npm", "TypeScript", "ox ", "init", "plan", "exec"} {
+		if strings.Contains(result.stdout, removed) {
+			t.Fatalf("help mentions removed tooling %q:\n%s", removed, result.stdout)
+		}
+	}
+}
+
+func TestVersionReportsGitTagDescriptionFromSourceRepo(t *testing.T) {
+	// TestVersionReportsGitTagDescriptionFromSourceRepo covers release diagnostics from source builds.
+	wantBytes, err := exec.Command("git", "describe", "--tags", "--always", "--dirty").Output()
+	if err != nil {
+		t.Skipf("git tag description unavailable: %v", err)
+	}
+	result := runCLI(t, newProject(t), "--version")
+	if result.code != 0 {
+		t.Fatalf("version failed: %s", result.stderr)
+	}
+	got := strings.TrimSpace(result.stdout)
+	want := strings.TrimSpace(string(wantBytes))
+	if got == "dev" || got != want {
+		t.Fatalf("version should use git tag description, got %q want %q", got, want)
+	}
+}
+
+func TestInstallInstallsBuiltInSkillsIntoProject(t *testing.T) {
+	// TestInstallInstallsBuiltInSkillsIntoProject covers local agent skill installation.
+	project := newProject(t)
+	result := runCLI(t, project, "install")
+	if result.code != 0 {
+		t.Fatalf("install failed: %s", result.stderr)
+	}
+	for _, name := range []string{"specrelay-plan", "specrelay-create", "specrelay-exec", "specrelay-archive"} {
+		data, err := os.ReadFile(filepath.Join(project, ".agents", "skills", name, "SKILL.md"))
+		if err != nil {
+			t.Fatalf("missing installed skill %s: %v", name, err)
+		}
+		if !strings.Contains(string(data), "name: "+name) {
+			t.Fatalf("installed skill %s has wrong content:\n%s", name, string(data))
+		}
+	}
+}
+
+func TestInstallGlobalAliasesInstallBuiltInSkillsIntoHome(t *testing.T) {
+	// TestInstallGlobalAliasesInstallBuiltInSkillsIntoHome covers user-level install aliases.
+	for _, args := range [][]string{{"install", "--global"}, {"i", "--global"}, {"i", "-g"}} {
+		project := newProject(t)
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		result := runCLI(t, project, args...)
+		if result.code != 0 {
+			t.Fatalf("%v failed: %s", args, result.stderr)
+		}
+		data, err := os.ReadFile(filepath.Join(home, ".agents", "skills", "specrelay-archive", "SKILL.md"))
+		if err != nil {
+			t.Fatalf("missing global archive skill for %v: %v", args, err)
+		}
+		if !strings.Contains(string(data), "specrelay archive <change> --yes") {
+			t.Fatalf("global archive skill content missing archive command:\n%s", string(data))
+		}
+		if _, err := os.Stat(filepath.Join(project, ".agents", "skills")); !os.IsNotExist(err) {
+			t.Fatalf("%v should not install project skills: %v", args, err)
+		}
+	}
+}
+
+func TestListAndStatusReportActiveChangeProgress(t *testing.T) {
+	// TestListAndStatusReportActiveChangeProgress covers lightweight inspection commands.
+	project := newProject(t)
+	writeValidChange(t, project, "2-重写-specrelay-go-cli")
+	if err := os.MkdirAll(filepath.Join(project, "docs", "changes", "archive", "2026-05-01-1-历史提案"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	list := runCLI(t, project, "list", "--json")
+	if list.code != 0 {
+		t.Fatalf("list failed: %s", list.stderr)
+	}
+	shortList := runCLI(t, project, "l", "--json")
+	if shortList.code != 0 {
+		t.Fatalf("short list failed: %s", shortList.stderr)
+	}
+	if shortList.stdout != list.stdout {
+		t.Fatalf("list aliases differ:\nlist=%s\nl=%s", list.stdout, shortList.stdout)
+	}
+	var listPayload struct {
+		Changes []struct {
+			Name string `json:"name"`
+		} `json:"changes"`
+	}
+	if err := json.Unmarshal([]byte(list.stdout), &listPayload); err != nil {
+		t.Fatalf("invalid list JSON: %v\n%s", err, list.stdout)
+	}
+	if len(listPayload.Changes) != 1 || listPayload.Changes[0].Name != "2-重写-specrelay-go-cli" {
+		t.Fatalf("list should include only active changes: %#v", listPayload)
+	}
+	status := runCLI(t, project, "status", "2-重写-specrelay-go-cli", "--json")
+	if status.code != 0 {
+		t.Fatalf("status failed: %s", status.stderr)
+	}
+	var statusPayload struct {
+		Change    string `json:"change"`
+		Status    string `json:"status"`
+		Artifacts []struct {
+			Name   string `json:"name"`
+			Status string `json:"status"`
+		} `json:"artifacts"`
+		Acceptance struct {
+			RequiredTests struct {
+				Total int `json:"total"`
+			} `json:"required_tests"`
+			RequiredEvidence struct {
+				Total int `json:"total"`
+			} `json:"required_evidence"`
+			Coverage struct {
+				Total int `json:"total"`
+			} `json:"coverage"`
+		} `json:"acceptance"`
+	}
+	if err := json.Unmarshal([]byte(status.stdout), &statusPayload); err != nil {
+		t.Fatalf("invalid status JSON: %v\n%s", err, status.stdout)
+	}
+	if statusPayload.Change != "2-重写-specrelay-go-cli" || statusPayload.Status != "ready" {
+		t.Fatalf("unexpected status payload: %#v", statusPayload)
+	}
+	if strings.Contains(status.stdout, `"tasks"`) {
+		t.Fatalf("status must not expose task checkbox progress: %s", status.stdout)
+	}
+	seen := map[string]string{}
+	for _, artifact := range statusPayload.Artifacts {
+		seen[artifact.Name] = artifact.Status
+	}
+	for _, name := range []string{"brief.md", "proposal.md", "design.md", "spec.md", "acceptance.json", "tests"} {
+		if seen[name] != "present" {
+			t.Fatalf("artifact %s not present in status: %#v", name, seen)
+		}
+	}
+	if _, ok := seen["task.md"]; ok {
+		t.Fatalf("status must not expose task.md as an active artifact: %#v", seen)
+	}
+	if statusPayload.Acceptance.RequiredTests.Total != 1 || statusPayload.Acceptance.RequiredEvidence.Total != 2 {
+		t.Fatalf("unexpected acceptance summary: %#v", statusPayload.Acceptance)
+	}
+}
+
+func TestValidateJSONIncludesLifecycleDiagnostics(t *testing.T) {
+	// TestValidateJSONIncludesLifecycleDiagnostics verifies specrelay validate exposes shared producer diagnostics.
+	project := newProject(t)
+	writeValidChange(t, project, "3-验收诊断")
+	changeDir := filepath.Join(project, "docs", "changes", "3-验收诊断")
+	acceptancePath := filepath.Join(changeDir, "acceptance.json")
+	acceptanceData, err := os.ReadFile(acceptancePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	acceptanceText := strings.ReplaceAll(string(acceptanceData), "证明提案包含真实测试入口，并生成 archive-log 与最终演示视频", "证明提案包含真实测试入口")
+	acceptanceText = strings.ReplaceAll(acceptanceText, "归档后提案测试文件仍随 active change 保留，测试命令写出 test-results/archive.log 与 test-results/archive-demo.webm", "归档后提案测试文件仍随 active change 保留并执行真实业务断言")
+	if err := os.WriteFile(acceptancePath, []byte(acceptanceText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testPath := filepath.Join(changeDir, "tests", "archive_test.go")
+	if err := os.WriteFile(testPath, []byte("package tests\n\nimport \"testing\"\n\nfunc TestNoProducer(t *testing.T) {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result := runCLI(t, project, "validate", "3-验收诊断", "--json")
+	if result.code == 0 {
+		t.Fatalf("validate should fail when evidence has no producer:\n%s", result.stdout)
+	}
+	var payload validationResult
+	if err := json.Unmarshal([]byte(result.stdout), &payload); err != nil {
+		t.Fatalf("invalid validate JSON: %v\n%s", err, result.stdout)
+	}
+	if payload.Valid || len(payload.Diagnostics) == 0 {
+		t.Fatalf("expected lifecycle diagnostics in validate JSON: %#v", payload)
+	}
+	if payload.Diagnostics[0].Code != "required_evidence_producer_missing" {
+		t.Fatalf("unexpected diagnostics: %#v", payload.Diagnostics)
+	}
+}
+
+func TestCommandHelpForDailyAndAutomationCommands(t *testing.T) {
+	// TestCommandHelpForDailyAndAutomationCommands keeps diagnostics useful for users and tools.
+	project := newProject(t)
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"list", "--help"}, "specrelay list [--json]"},
+		{[]string{"l", "-h"}, "specrelay l [--json]"},
+		{[]string{"install", "--help"}, "specrelay install [--global | -g]"},
+		{[]string{"i", "-h"}, "specrelay i [--global | -g]"},
+		{[]string{"create", "--help"}, "Usage:specrelay create"},
+		{[]string{"status", "--help"}, "Usage:specrelay status <change> [--json]"},
+		{[]string{"validate", "--help"}, "Usage:specrelay validate <change> [--json]"},
+		{[]string{"archive", "--help"}, "Usage:specrelay archive <change> --yes"},
+	}
+	for _, tc := range cases {
+		result := runCLI(t, project, tc.args...)
+		if result.code != 0 {
+			t.Fatalf("%v failed: %s", tc.args, result.stderr)
+		}
+		if !strings.Contains(result.stdout, tc.want) {
+			t.Fatalf("%v missing %q:\n%s", tc.args, tc.want, result.stdout)
+		}
+	}
+}
+
+func TestCreateReportsNextProposalNumber(t *testing.T) {
+	// TestCreateReportsNextProposalNumber lets agents avoid listing all historical proposal directories.
+	project := newProject(t)
+	for _, dir := range []string{
+		filepath.Join(project, "docs", "changes", "12-活动提案"),
+		filepath.Join(project, "docs", "changes", "archive", "2026-05-01-53-历史提案"),
+		filepath.Join(project, "docs", "changes", "archive", "2026-05-02-7-旧提案"),
+		filepath.Join(project, "docs", "changes", "archive", "not-a-proposal"),
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result := runCLI(t, project, "create")
+	if result.code != 0 {
+		t.Fatalf("create failed: %s", result.stderr)
+	}
+	if strings.TrimSpace(result.stdout) != "54" {
+		t.Fatalf("unexpected next number: stdout=%q stderr=%q", result.stdout, result.stderr)
+	}
+	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "54-需求")); !os.IsNotExist(err) {
+		t.Fatalf("create should only report the number, stat err=%v", err)
+	}
+}
+
+func TestCreateRejectsStageArguments(t *testing.T) {
+	// TestCreateRejectsStageArguments keeps proposal file creation in the specrelay-create skill.
+	result := runCLI(t, newProject(t), "create", "需求")
+	if result.code == 0 {
+		t.Fatalf("create with a title unexpectedly succeeded with stdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, "Usage:specrelay create") {
+		t.Fatalf("unexpected create error: %s", result.stderr)
+	}
+}
+
+func TestRemovedStageCommandsFail(t *testing.T) {
+	// TestRemovedStageCommandsFail ensures agents, not CLI stages, drive proposal work.
+	project := newProject(t)
+	for _, args := range [][]string{{"init"}, {"exec"}, {"plan"}} {
+		result := runCLI(t, project, args...)
+		if result.code == 0 {
+			t.Fatalf("%v unexpectedly succeeded with stdout:\n%s", args, result.stdout)
+		}
+		if !strings.Contains(result.stderr, "unknown command") {
+			t.Fatalf("%v returned unexpected error: %s", args, result.stderr)
+		}
+	}
+}
+
+func TestValidateOutputsStableJSON(t *testing.T) {
+	// TestValidateOutputsStableJSON verifies valid and invalid proposal diagnostics.
+	project := newProject(t)
+	writeValidChange(t, project, "2-重写-specrelay-go-cli")
+	result := runCLI(t, project, "validate", "2-重写-specrelay-go-cli", "--json")
+	if result.code != 0 {
+		t.Fatalf("validate failed: %s", result.stderr)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result.stdout), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, result.stdout)
+	}
+	if payload["valid"] != true || payload["change"] != "2-重写-specrelay-go-cli" {
+		t.Fatalf("unexpected payload: %#v", payload)
+	}
+	for _, key := range []string{"errors", "warnings", "artifacts"} {
+		if _, ok := payload[key]; !ok {
+			t.Fatalf("missing JSON field %s: %#v", key, payload)
+		}
+	}
+	if err := os.Remove(filepath.Join(project, "docs", "changes", "2-重写-specrelay-go-cli", "proposal.md")); err != nil {
+		t.Fatal(err)
+	}
+	result = runCLI(t, project, "validate", "2-重写-specrelay-go-cli", "--json")
+	if result.code == 0 {
+		t.Fatal("expected invalid proposal to fail")
+	}
+	if err := json.Unmarshal([]byte(result.stdout), &payload); err != nil {
+		t.Fatalf("invalid failure JSON: %v\n%s", err, result.stdout)
+	}
+	if payload["valid"] != false {
+		t.Fatalf("expected valid=false: %#v", payload)
+	}
+}
+
+func TestValidateAcceptsSmallBriefOnlyChange(t *testing.T) {
+	// TestValidateAcceptsSmallBriefOnlyChange covers the small proposal entry without long documents.
+	project := newProject(t)
+	change := "3-明确-small-入口"
+	writeValidChange(t, project, change)
+	changeDir := filepath.Join(project, "docs", "changes", change)
+	for _, name := range []string{"proposal.md", "design.md", "spec.md"} {
+		if err := os.Remove(filepath.Join(changeDir, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result := runCLI(t, project, "validate", change, "--json")
+	if result.code != 0 {
+		t.Fatalf("small brief-only validate failed:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+
+	if err := os.Remove(filepath.Join(changeDir, "tests", "archive_test.go")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(changeDir, "tests", "README.md"), []byte("只是说明文档\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result = runCLI(t, project, "validate", change, "--json")
+	if result.code == 0 {
+		t.Fatal("expected small change without real test code to fail")
+	}
+	if !strings.Contains(result.stdout+result.stderr, "tests contains non-test code") {
+		t.Fatalf("missing small tests hard-contract diagnostic:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+
+	if err := os.WriteFile(filepath.Join(changeDir, "tests", "small_test.sh"), []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(changeDir, "tests", "README.md")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(changeDir, "proposal.md"), []byte("## 部分长文档\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result = runCLI(t, project, "validate", change, "--json")
+	if result.code == 0 {
+		t.Fatal("expected partial standard documents to fail")
+	}
+	for _, want := range []string{"missing design.md", "missing spec.md"} {
+		if !strings.Contains(result.stdout+result.stderr, want) {
+			t.Fatalf("missing standard diagnostic %q:\nstdout=%s\nstderr=%s", want, result.stdout, result.stderr)
+		}
+	}
+}
+
+func TestValidateRejectsTaskFileInActiveChange(t *testing.T) {
+	// TestValidateRejectsTaskFileInActiveChange ensures executors cannot reintroduce a Git-tracked plan.
+	project := newProject(t)
+	change := "2-禁止任务文件"
+	writeValidChange(t, project, change)
+	taskPath := filepath.Join(project, "docs", "changes", change, "task.md")
+	if err := os.WriteFile(taskPath, []byte("- [x] 不应持久化的步骤\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := runCLI(t, project, "validate", change, "--json")
+	if result.code == 0 {
+		t.Fatal("expected active task.md to fail validation")
+	}
+	if !strings.Contains(result.stdout+result.stderr, "must not contain task.md") {
+		t.Fatalf("missing explicit task.md prohibition:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+}
+
+func TestValidateChecksAcceptanceContract(t *testing.T) {
+	// TestValidateChecksAcceptanceContract keeps specrelay and specrelay flow aligned on sealed-run inputs.
+	project := newProject(t)
+	change := "2-重写-specrelay-go-cli"
+	writeValidChange(t, project, change)
+	acceptancePath := filepath.Join(project, "docs", "changes", change, "acceptance.json")
+	if err := os.Remove(acceptancePath); err != nil {
+		t.Fatal(err)
+	}
+	result := runCLI(t, project, "validate", change, "--json")
+	if result.code == 0 {
+		t.Fatal("expected missing acceptance.json to fail")
+	}
+	if !strings.Contains(result.stdout+result.stderr, "acceptance.json") {
+		t.Fatalf("missing acceptance diagnostic:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+	body := `{
+  "summary": "验收矩阵必须能引用真实测试和证据",
+  "coverage": [
+    {
+      "spec": "需求：归档测试 / 场景：归档包含测试",
+      "tests": ["archive-test"],
+      "evidence": ["archive-log"],
+      "risk": ""
+    }
+  ],
+  "required_tests": [
+    {
+      "id": "archive-test",
+	      "source": "change_contract",
+	      "path": "docs/changes/` + change + `/tests/archive_test.go",
+	      "command": "go test docs/changes/` + change + `/tests/archive_test.go",
+	      "purpose": "覆盖契约并生成 archive-log 到 test-results/archive.log",
+	      "assertions": ["归档后测试文件仍保留，测试命令写出 archive-log 运行证据"],
+	      "expected_initial_failure": "未实现归档时测试文件missing"
+	    }
+  ],
+  "required_evidence": [
+    {"id": "archive-log", "kind": "runtime_log", "path": "test-results/archive.log", "purpose": "记录测试结果"}
+  ]
+}
+`
+	if err := os.WriteFile(acceptancePath, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result = runCLI(t, project, "validate", change, "--json")
+	if result.code != 0 {
+		t.Fatalf("expected coverage acceptance to pass:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+	body = `{
+  "summary": "验收证据必须有 producer",
+  "coverage": [
+    {
+      "spec": "需求：归档测试 / 场景：归档包含测试",
+      "tests": ["archive-test"],
+      "evidence": ["archive-log"],
+      "risk": "故意missing producer"
+    }
+  ],
+  "required_tests": [
+    {
+      "id": "archive-test",
+      "source": "change_contract",
+      "path": "docs/changes/` + change + `/tests/archive_test.go",
+      "command": "go test docs/changes/` + change + `/tests/archive_test.go",
+      "purpose": "覆盖契约",
+      "assertions": ["归档后测试文件仍保留"]
+    }
+  ],
+  "required_evidence": [
+    {"id": "archive-log", "kind": "runtime_log", "path": "test-results/archive.log", "purpose": "记录测试结果"}
+  ]
+}
+`
+	if err := os.WriteFile(acceptancePath, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result = runCLI(t, project, "validate", change, "--json")
+	if result.code == 0 {
+		t.Fatal("expected evidence without producer to fail")
+	}
+	if !strings.Contains(result.stdout+result.stderr, "producer") || !strings.Contains(result.stdout+result.stderr, "archive-log") {
+		t.Fatalf("missing evidence producer diagnostic:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+	body = `{
+	  "summary": "验收矩阵引用未知测试必须失败",
+  "coverage": [
+    {"spec": "需求：归档测试 / 场景：归档包含测试", "tests": ["missing-test"], "evidence": [], "risk": "缺少证据"}
+  ],
+  "required_tests": [
+    {"id": "archive-test", "source": "change_contract", "path": "docs/changes/` + change + `/tests/archive_test.go", "command": "go test docs/changes/` + change + `/tests/archive_test.go", "purpose": "覆盖契约", "assertions": ["归档后提案测试文件仍随 active change 保留"]}
+  ],
+  "required_evidence": []
+}
+`
+	if err := os.WriteFile(acceptancePath, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result = runCLI(t, project, "validate", change, "--json")
+	if result.code == 0 {
+		t.Fatal("expected unknown coverage test reference to fail")
+	}
+	if !strings.Contains(result.stdout+result.stderr, "missing-test") {
+		t.Fatalf("missing coverage reference diagnostic:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+	body = `{
+  "summary": "未知字段必须失败",
+  "unexpected": true,
+  "required_tests": [
+    {"id": "archive-test", "source": "change_contract", "path": "docs/changes/` + change + `/tests/archive_test.go", "command": "go test docs/changes/` + change + `/tests/archive_test.go", "purpose": "覆盖契约", "assertions": ["归档后提案测试文件仍随 active change 保留"]}
+  ],
+  "required_evidence": []
+}
+`
+	if err := os.WriteFile(acceptancePath, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result = runCLI(t, project, "validate", change, "--json")
+	if result.code == 0 {
+		t.Fatal("expected unknown acceptance field to fail")
+	}
+	if !strings.Contains(result.stdout+result.stderr, "unexpected") {
+		t.Fatalf("missing unknown field diagnostic:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+	body = `{
+  "summary": "无效 source 必须失败",
+  "required_tests": [
+    {"id": "archive-test", "source": "fake", "path": "docs/changes/` + change + `/tests/archive_test.go", "command": "go test docs/changes/` + change + `/tests/archive_test.go", "purpose": "覆盖契约", "assertions": ["归档后提案测试文件仍随 active change 保留"]}
+  ],
+  "required_evidence": [
+    {"id": "archive-log", "kind": "runtime_log", "path": "test-results/archive.log", "purpose": "记录测试结果"}
+  ]
+}
+`
+	if err := os.WriteFile(acceptancePath, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result = runCLI(t, project, "validate", change, "--json")
+	if result.code == 0 {
+		t.Fatal("expected invalid acceptance source to fail")
+	}
+	if !strings.Contains(result.stdout+result.stderr, "source") {
+		t.Fatalf("missing source diagnostic:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+}
+
+func TestValidateRejectsTrackedTestResultsContract(t *testing.T) {
+	// TestValidateRejectsTrackedTestResultsContract keeps generated evidence out of git contracts.
+	project := newProject(t)
+	change := "2-重写-specrelay-go-cli"
+	writeValidChange(t, project, change)
+	contractPath := filepath.Join(project, "docs", "changes", change, "tests", "archive_test.go")
+	body := `package tests
+
+import "testing"
+
+func TestRuntimeEvidencePolicy(t *testing.T) {
+	_ = "git ls-files --error-unmatch test-results/archive.log"
+}
+`
+	if err := os.WriteFile(contractPath, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result := runCLI(t, project, "validate", change, "--json")
+	if result.code == 0 {
+		t.Fatal("expected validate to reject git-tracked test-results evidence")
+	}
+	if !strings.Contains(result.stdout+result.stderr, "test-results") || !strings.Contains(result.stdout+result.stderr, "git ls-files") {
+		t.Fatalf("missing tracked test-results diagnostic:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+}
+
+func TestValidateRejectsTestResultsGitignoreException(t *testing.T) {
+	// TestValidateRejectsTestResultsGitignoreException prevents workflows from unignoring runtime evidence.
+	project := newProject(t)
+	change := "2-重写-specrelay-go-cli"
+	writeValidChange(t, project, change)
+	if err := os.WriteFile(filepath.Join(project, ".gitignore"), []byte("test-results\n!test-results/keep.log\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result := runCLI(t, project, "validate", change, "--json")
+	if result.code == 0 {
+		t.Fatal("expected validate to reject test-results gitignore exception")
+	}
+	if !strings.Contains(result.stdout+result.stderr, ".gitignore") || !strings.Contains(result.stdout+result.stderr, "test-results") {
+		t.Fatalf("missing gitignore diagnostic:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+}
+
+func TestValidateIgnoresGitignoredTestCache(t *testing.T) {
+	// TestValidateIgnoresGitignoredTestCache keeps generated cache directories out of tests/ validation.
+	project := newProject(t)
+	if err := exec.Command("git", "-C", project, "init").Run(); err != nil {
+		t.Fatal(err)
+	}
+	change := "2-重写-specrelay-go-cli"
+	writeValidChange(t, project, change)
+	if err := os.WriteFile(filepath.Join(project, ".gitignore"), []byte("__pycache__/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cacheDir := filepath.Join(project, "docs", "changes", change, "tests", "__pycache__")
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cacheDir, "test_contract.cpython-312.pyc"), []byte("cache"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result := runCLI(t, project, "validate", change, "--json")
+	if result.code != 0 {
+		t.Fatalf("validate should ignore gitignored test cache:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+}
+
+func TestValidateReportsUnreadableTestsDirectory(t *testing.T) {
+	// TestValidateReportsUnreadableTestsDirectory keeps JSON validation reliable for scripts.
+	if os.Getuid() == 0 {
+		t.Skip("root can read directories even after removing permission bits")
+	}
+	project := newProject(t)
+	writeValidChange(t, project, "2-重写-specrelay-go-cli")
+	testsDir := filepath.Join(project, "docs", "changes", "2-重写-specrelay-go-cli", "tests")
+	if err := os.Chmod(testsDir, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.Chmod(testsDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	result := runCLI(t, project, "validate", "2-重写-specrelay-go-cli", "--json")
+	if result.code == 0 {
+		t.Fatal("expected unreadable tests directory to fail validation")
+	}
+	var payload struct {
+		Valid  bool     `json:"valid"`
+		Errors []string `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(result.stdout), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, result.stdout)
+	}
+	if payload.Valid {
+		t.Fatalf("expected valid=false: %#v", payload)
+	}
+	if !strings.Contains(strings.Join(payload.Errors, "\n"), "cannot read tests") {
+		t.Fatalf("missing tests read error: %#v", payload.Errors)
+	}
+}
+
+func TestValidateRejectsEmptyTestsDirectory(t *testing.T) {
+	// TestValidateRejectsEmptyTestsDirectory prevents empty proposal test gates from passing.
+	project := newProject(t)
+	writeValidChange(t, project, "2-重写-specrelay-go-cli")
+	if err := os.Remove(filepath.Join(project, "docs", "changes", "2-重写-specrelay-go-cli", "tests", "archive_test.go")); err != nil {
+		t.Fatal(err)
+	}
+	result := runCLI(t, project, "validate", "2-重写-specrelay-go-cli", "--json")
+	if result.code == 0 {
+		t.Fatal("expected validate to reject empty tests directory")
+	}
+	var payload struct {
+		Valid  bool     `json:"valid"`
+		Errors []string `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(result.stdout), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, result.stdout)
+	}
+	if payload.Valid {
+		t.Fatalf("expected valid=false: %#v", payload)
+	}
+	if !strings.Contains(strings.Join(payload.Errors, "\n"), "tests must contain at least one test file") {
+		t.Fatalf("missing empty tests error: %#v", payload.Errors)
+	}
+}
+
+func TestArchiveKeepsProposalTestsWithoutEditingMainSpec(t *testing.T) {
+	// TestArchiveKeepsProposalTestsWithoutEditingMainSpec keeps semantic spec and test merging outside the CLI.
+	project := newProject(t)
+	writeValidChange(t, project, "2-登录能力")
+	mainSpec := filepath.Join(project, "docs", "specs", "specrelay-go-cli.md")
+	if err := os.MkdirAll(filepath.Dir(mainSpec), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mainSpec, []byte("主规格保持不变\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result := runCLI(t, project, "archive", "2-登录能力", "--yes")
+	if result.code != 0 {
+		t.Fatalf("archive failed: %s", result.stderr)
+	}
+	if !strings.Contains(result.stdout, filepath.Join("archive")) {
+		t.Fatalf("archive output missing target: %s", result.stdout)
+	}
+	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "2-登录能力")); !os.IsNotExist(err) {
+		t.Fatalf("active change still exists or stat failed differently: %v", err)
+	}
+	archivedTest := filepath.Join(project, "docs", "changes", "archive", "2026-05-08-2-登录能力", "tests", "archive_test.go")
+	data, err := os.ReadFile(archivedTest)
+	if err != nil {
+		t.Fatalf("archived proposal test missing: %v", err)
+	}
+	if strings.Contains(string(data), "Source proposal:") {
+		t.Fatalf("CLI should not rewrite proposal tests:\n%s", string(data))
+	}
+	if strings.Contains(string(data), "docs/changes/2-登录能力/") || !strings.Contains(string(data), "docs/changes/archive/2026-05-08-2-登录能力/") {
+		t.Fatalf("archived test references were not migrated:\n%s", string(data))
+	}
+	specData, err := os.ReadFile(filepath.Join(project, "docs", "changes", "archive", "2026-05-08-2-登录能力", "spec.md"))
+	if err != nil {
+		t.Fatalf("archived spec missing: %v", err)
+	}
+	if strings.Contains(string(specData), "`tests/archive_test.go`") || !strings.Contains(string(specData), "`docs/changes/archive/2026-05-08-2-登录能力/tests/archive_test.go`") {
+		t.Fatalf("archived document test references were not migrated:\n%s", string(specData))
+	}
+	if _, err := os.Stat(filepath.Join(project, "tests", "specs", "2-登录能力", "archive_test.go")); !os.IsNotExist(err) {
+		t.Fatalf("CLI should not mechanically create tests/specs change directory: %v", err)
+	}
+	acceptanceData, err := os.ReadFile(filepath.Join(project, "docs", "changes", "archive", "2026-05-08-2-登录能力", "acceptance.json"))
+	if err != nil {
+		t.Fatalf("archived acceptance contract missing: %v", err)
+	}
+	acceptanceText := string(acceptanceData)
+	if strings.Contains(acceptanceText, "docs/changes/2-登录能力/") || !strings.Contains(acceptanceText, "docs/changes/archive/2026-05-08-2-登录能力/") {
+		t.Fatalf("archived acceptance paths were not migrated:\n%s", acceptanceText)
+	}
+	data, err = os.ReadFile(mainSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "主规格保持不变\n" {
+		t.Fatalf("archive edited main spec: %q", string(data))
+	}
+}
+
+func TestArchiveRequiresCommittedSubmissionEvidence(t *testing.T) {
+	// TestArchiveRequiresCommittedSubmissionEvidence verifies archive rejects legacy, misplaced, missing, or ignored proposal evidence.
+	tests := []struct {
+		name    string
+		prepare func(*testing.T, string, string)
+		wantErr string
+	}{
+		{
+			name: "legacy contract has no package",
+			prepare: func(t *testing.T, project, change string) {
+				rewriteAcceptanceJSON(t, project, change, func(payload map[string]any) {
+					delete(payload, "submission_evidence")
+				})
+			},
+			wantErr: "must declare submission_evidence",
+		},
+		{
+			name: "archive directory belongs to another change",
+			prepare: func(t *testing.T, project, change string) {
+				rewriteAcceptanceJSON(t, project, change, func(payload map[string]any) {
+					items := payload["submission_evidence"].([]any)
+					for _, rawItem := range items {
+						item := rawItem.(map[string]any)
+						item["archive_path"] = strings.Replace(
+							item["archive_path"].(string),
+							"/"+change+"/",
+							"/9-other/",
+							1,
+						)
+					}
+				})
+			},
+			wantErr: "current change",
+		},
+		{
+			name: "archive file is missing",
+			prepare: func(t *testing.T, project, change string) {
+				path := filepath.Join(project, "tests", "evidence", "proposals", change, "archive-demo.webm")
+				if err := os.Remove(path); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantErr: "does not exist",
+		},
+		{
+			name: "archive file is gitignored",
+			prepare: func(t *testing.T, project, change string) {
+				pattern := "tests/evidence/proposals/" + change + "/archive-demo.webm\n"
+				if err := os.WriteFile(filepath.Join(project, ".gitignore"), []byte(pattern), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantErr: "must not be ignored by Git",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			project := newProject(t)
+			change := "2-提交证据"
+			writeValidChange(t, project, change)
+			test.prepare(t, project, change)
+
+			result := runCLI(t, project, "archive", change, "--yes")
+			if result.code == 0 || !strings.Contains(result.stderr, test.wantErr) {
+				t.Fatalf("archive error = %q, want substring %q", result.stderr, test.wantErr)
+			}
+			if _, err := os.Stat(filepath.Join(project, "docs", "changes", change)); err != nil {
+				t.Fatalf("failed evidence gate must keep active change: %v", err)
+			}
+		})
+	}
+}
+
+func TestArchivePreservesHistoricalTaskFiles(t *testing.T) {
+	// TestArchivePreservesHistoricalTaskFiles keeps old archived plans as immutable historical material.
+	project := newProject(t)
+	historicalTask := filepath.Join(project, "docs", "changes", "archive", "2026-05-01-1-历史提案", "task.md")
+	if err := os.MkdirAll(filepath.Dir(historicalTask), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const historicalBody = "- [x] 历史任务\n"
+	if err := os.WriteFile(historicalTask, []byte(historicalBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeValidChange(t, project, "2-当前提案")
+
+	result := runCLI(t, project, "archive", "2-当前提案", "--yes")
+	if result.code != 0 {
+		t.Fatalf("archive failed: %s", result.stderr)
+	}
+	data, err := os.ReadFile(historicalTask)
+	if err != nil {
+		t.Fatalf("historical task.md was removed: %v", err)
+	}
+	if string(data) != historicalBody {
+		t.Fatalf("historical task.md changed: %q", data)
+	}
+}
+
+func rewriteAcceptanceJSON(t *testing.T, project, change string, mutate func(map[string]any)) {
+	// rewriteAcceptanceJSON updates one fixture contract while preserving valid JSON formatting.
+	t.Helper()
+	path := filepath.Join(project, "docs", "changes", change, "acceptance.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatal(err)
+	}
+	mutate(payload)
+	updated, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, append(updated, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestArchiveAcceptsSmallBriefOnlyChange(t *testing.T) {
+	// TestArchiveAcceptsSmallBriefOnlyChange keeps CLI archiving compatible with small proposals.
+	project := newProject(t)
+	change := "2-登录能力"
+	writeValidChange(t, project, change)
+	changeDir := filepath.Join(project, "docs", "changes", change)
+	for _, name := range []string{"proposal.md", "design.md", "spec.md"} {
+		if err := os.Remove(filepath.Join(changeDir, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result := runCLI(t, project, "archive", change, "--yes")
+	if result.code != 0 {
+		t.Fatalf("small archive failed:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
+	}
+	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "archive", "2026-05-08-"+change, "brief.md")); err != nil {
+		t.Fatalf("small change should be archived with brief.md: %v", err)
+	}
+}
+
+func TestArchiveRequiresAtLeastOneTestFile(t *testing.T) {
+	// TestArchiveRequiresAtLeastOneTestFile enforces real test provenance at archive time.
+	project := newProject(t)
+	writeValidChange(t, project, "2-登录能力")
+	if err := os.Remove(filepath.Join(project, "docs", "changes", "2-登录能力", "tests", "archive_test.go")); err != nil {
+		t.Fatal(err)
+	}
+	result := runCLI(t, project, "archive", "2-登录能力", "--yes")
+	if result.code == 0 {
+		t.Fatal("expected archive to reject an empty tests directory")
+	}
+	if !strings.Contains(result.stderr, "tests must contain at least one test file") {
+		t.Fatalf("unexpected empty-tests error: %s", result.stderr)
+	}
+	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "2-登录能力")); err != nil {
+		t.Fatalf("change should remain active after empty-tests failure: %v", err)
+	}
+}
+
+func TestArchiveIgnoresExistingSpecTests(t *testing.T) {
+	// TestArchiveIgnoresExistingSpecTests leaves logical test merging to the archive skill.
+	project := newProject(t)
+	writeValidChange(t, project, "2-登录能力")
+	if err := os.MkdirAll(filepath.Join(project, "tests", "specs", "specrelay-go-cli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	existing := filepath.Join(project, "tests", "specs", "specrelay-go-cli", "archive_test.go")
+	if err := os.WriteFile(existing, []byte("keep me"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result := runCLI(t, project, "archive", "2-登录能力", "--yes")
+	if result.code != 0 {
+		t.Fatalf("archive should ignore existing spec tests: %s", result.stderr)
+	}
+	data, err := os.ReadFile(existing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "keep me" {
+		t.Fatal("archive overwrote existing spec test")
+	}
+	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "archive", "2026-05-08-2-登录能力")); err != nil {
+		t.Fatalf("change should be archived: %v", err)
+	}
+}
