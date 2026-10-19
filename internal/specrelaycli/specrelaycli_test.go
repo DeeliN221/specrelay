@@ -431,8 +431,9 @@ func TestCreateReportsNextProposalNumber(t *testing.T) {
 	project := newProject(t)
 	for _, dir := range []string{
 		filepath.Join(project, "docs", "changes", "12-活动提案"),
-		filepath.Join(project, "docs", "changes", "archive", "2026-05-01-53-历史提案"),
-		filepath.Join(project, "docs", "changes", "archive", "2026-05-02-7-旧提案"),
+		filepath.Join(project, "docs", "changes", "archive", "53-历史提案"),
+		filepath.Join(project, "docs", "changes", "archive", "7-旧提案"),
+		filepath.Join(project, "docs", "changes", "archive", "2026-05-02-60-旧日期提案"),
 		filepath.Join(project, "docs", "changes", "archive", "not-a-proposal"),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -443,11 +444,83 @@ func TestCreateReportsNextProposalNumber(t *testing.T) {
 	if result.code != 0 {
 		t.Fatalf("create failed: %s", result.stderr)
 	}
-	if strings.TrimSpace(result.stdout) != "54" {
+	if strings.TrimSpace(result.stdout) != "61" {
 		t.Fatalf("unexpected next number: stdout=%q stderr=%q", result.stdout, result.stderr)
 	}
-	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "54-需求")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "61-需求")); !os.IsNotExist(err) {
 		t.Fatalf("create should only report the number, stat err=%v", err)
+	}
+}
+
+func TestCreateReadsLegacyArchiveDates(t *testing.T) {
+	// TestCreateReadsLegacyArchiveDates ignores dashed and compact archive dates instead of reading the year.
+	project := newProject(t)
+	for _, name := range []string{"2026-05-01-8-短横线归档", "20260726-9-紧凑日期归档"} {
+		if err := os.MkdirAll(filepath.Join(project, "docs", "changes", "archive", name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result := runCLI(t, project, "create")
+	if result.code != 0 {
+		t.Fatalf("create failed: %s", result.stderr)
+	}
+	if strings.TrimSpace(result.stdout) != "10" {
+		t.Fatalf("legacy archive dates should not become proposal numbers: stdout=%q", result.stdout)
+	}
+}
+
+func TestCreateRejectsDatedActiveProposal(t *testing.T) {
+	// TestCreateRejectsDatedActiveProposal prevents a year in a dated directory from becoming the proposal number.
+	project := newProject(t)
+	if err := os.MkdirAll(filepath.Join(project, "docs", "changes", "2026-10-19-54-历史提案"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	result := runCLI(t, project, "create")
+	if result.code == 0 {
+		t.Fatalf("create with a dated active proposal unexpectedly succeeded: stdout=%q", result.stdout)
+	}
+	if !strings.Contains(result.stderr, "must not use a date prefix") || !strings.Contains(result.stderr, "2026-10-19-54-历史提案") {
+		t.Fatalf("create error should name the dated directory and the rule: %s", result.stderr)
+	}
+	if strings.TrimSpace(result.stdout) != "" {
+		t.Fatalf("create should not report a number for a dated active proposal: %q", result.stdout)
+	}
+}
+
+func TestStatusAndValidateRejectDatedChangeName(t *testing.T) {
+	// TestStatusAndValidateRejectDatedChangeName keeps the active naming contract consistent across inspection commands.
+	project := newProject(t)
+	change := "2026-10-19-54-历史提案"
+	status := runCLI(t, project, "status", change)
+	if status.code == 0 || !strings.Contains(status.stderr, "must not use a date prefix") {
+		t.Fatalf("status should reject a dated change name: code=%d stderr=%q", status.code, status.stderr)
+	}
+	validate := runCLI(t, project, "validate", change, "--json")
+	if validate.code == 0 {
+		t.Fatalf("validate should reject a dated change name: stdout=%q", validate.stdout)
+	}
+	var payload struct {
+		Valid  bool     `json:"valid"`
+		Errors []string `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(validate.stdout), &payload); err != nil {
+		t.Fatalf("invalid validate JSON: %v\n%s", err, validate.stdout)
+	}
+	if payload.Valid {
+		t.Fatalf("validate reported a dated change name as valid: %s", validate.stdout)
+	}
+	found := false
+	for _, message := range payload.Errors {
+		if strings.Contains(message, "must not use a date prefix") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("validate errors should explain the date prefix: %s", validate.stdout)
+	}
+	archive := runCLI(t, project, "archive", change, "--yes")
+	if archive.code == 0 || !strings.Contains(archive.stderr, "must not use a date prefix") {
+		t.Fatalf("archive should reject a dated change name: code=%d stderr=%q", archive.code, archive.stderr)
 	}
 }
 
@@ -875,7 +948,7 @@ func TestArchiveKeepsProposalTestsWithoutEditingMainSpec(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "2-登录能力")); !os.IsNotExist(err) {
 		t.Fatalf("active change still exists or stat failed differently: %v", err)
 	}
-	archivedTest := filepath.Join(project, "docs", "changes", "archive", "2026-05-08-2-登录能力", "tests", "archive_test.go")
+	archivedTest := filepath.Join(project, "docs", "changes", "archive", "2-登录能力", "tests", "archive_test.go")
 	data, err := os.ReadFile(archivedTest)
 	if err != nil {
 		t.Fatalf("archived proposal test missing: %v", err)
@@ -883,25 +956,25 @@ func TestArchiveKeepsProposalTestsWithoutEditingMainSpec(t *testing.T) {
 	if strings.Contains(string(data), "Source proposal:") {
 		t.Fatalf("CLI should not rewrite proposal tests:\n%s", string(data))
 	}
-	if strings.Contains(string(data), "docs/changes/2-登录能力/") || !strings.Contains(string(data), "docs/changes/archive/2026-05-08-2-登录能力/") {
+	if strings.Contains(string(data), "docs/changes/2-登录能力/") || !strings.Contains(string(data), "docs/changes/archive/2-登录能力/") {
 		t.Fatalf("archived test references were not migrated:\n%s", string(data))
 	}
-	specData, err := os.ReadFile(filepath.Join(project, "docs", "changes", "archive", "2026-05-08-2-登录能力", "spec.md"))
+	specData, err := os.ReadFile(filepath.Join(project, "docs", "changes", "archive", "2-登录能力", "spec.md"))
 	if err != nil {
 		t.Fatalf("archived spec missing: %v", err)
 	}
-	if strings.Contains(string(specData), "`tests/archive_test.go`") || !strings.Contains(string(specData), "`docs/changes/archive/2026-05-08-2-登录能力/tests/archive_test.go`") {
+	if strings.Contains(string(specData), "`tests/archive_test.go`") || !strings.Contains(string(specData), "`docs/changes/archive/2-登录能力/tests/archive_test.go`") {
 		t.Fatalf("archived document test references were not migrated:\n%s", string(specData))
 	}
 	if _, err := os.Stat(filepath.Join(project, "tests", "specs", "2-登录能力", "archive_test.go")); !os.IsNotExist(err) {
 		t.Fatalf("CLI should not mechanically create tests/specs change directory: %v", err)
 	}
-	acceptanceData, err := os.ReadFile(filepath.Join(project, "docs", "changes", "archive", "2026-05-08-2-登录能力", "acceptance.json"))
+	acceptanceData, err := os.ReadFile(filepath.Join(project, "docs", "changes", "archive", "2-登录能力", "acceptance.json"))
 	if err != nil {
 		t.Fatalf("archived acceptance contract missing: %v", err)
 	}
 	acceptanceText := string(acceptanceData)
-	if strings.Contains(acceptanceText, "docs/changes/2-登录能力/") || !strings.Contains(acceptanceText, "docs/changes/archive/2026-05-08-2-登录能力/") {
+	if strings.Contains(acceptanceText, "docs/changes/2-登录能力/") || !strings.Contains(acceptanceText, "docs/changes/archive/2-登录能力/") {
 		t.Fatalf("archived acceptance paths were not migrated:\n%s", acceptanceText)
 	}
 	data, err = os.ReadFile(mainSpec)
@@ -1050,7 +1123,7 @@ func TestArchiveAcceptsSmallBriefOnlyChange(t *testing.T) {
 	if result.code != 0 {
 		t.Fatalf("small archive failed:\nstdout=%s\nstderr=%s", result.stdout, result.stderr)
 	}
-	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "archive", "2026-05-08-"+change, "brief.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "archive", change, "brief.md")); err != nil {
 		t.Fatalf("small change should be archived with brief.md: %v", err)
 	}
 }
@@ -1096,7 +1169,7 @@ func TestArchiveIgnoresExistingSpecTests(t *testing.T) {
 	if string(data) != "keep me" {
 		t.Fatal("archive overwrote existing spec test")
 	}
-	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "archive", "2026-05-08-2-登录能力")); err != nil {
+	if _, err := os.Stat(filepath.Join(project, "docs", "changes", "archive", "2-登录能力")); err != nil {
 		t.Fatalf("change should be archived: %v", err)
 	}
 }

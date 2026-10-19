@@ -524,7 +524,7 @@ func qualityLoopArchiveCheckpointStage(state State) (string, error) {
 
 // qualityLoopArchiveInvariantSnapshot locks implementation and sealed evidence through archive.
 // Proposal files are deliberately excluded because specrelay archive may rewrite their test references
-// while moving them into the dated archive directory.
+// while moving them into the archive directory.
 func qualityLoopArchiveInvariantSnapshot(repo string, state State) (string, error) {
 	content, err := gitChangeContentSnapshotForChange(repo, state.ChangeName)
 	if err != nil {
@@ -646,11 +646,10 @@ func qualityLoopArchivePayloadDir(repo, changeName string) (string, error) {
 	if info, err := os.Stat(active); err == nil && info.IsDir() {
 		return active, nil
 	}
-	matches, err := filepath.Glob(filepath.Join(repo, "docs", "changes", "archive", "*-"+changeName))
+	matches, err := archivedChangeDirs(repo, changeName)
 	if err != nil {
 		return "", err
 	}
-	sort.Strings(matches)
 	if len(matches) == 0 {
 		return "", fmt.Errorf("archive gate cannot find the active or archived proposal %q", changeName)
 	}

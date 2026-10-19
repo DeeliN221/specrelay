@@ -132,6 +132,10 @@ func nextChangeNumber(root string) (int, error) {
 			}
 			continue
 		}
+		if datedChangePrefixRe.MatchString(entry.Name()) {
+			// A dated name under changes/ would otherwise be read as year 2026, not the proposal number.
+			return 0, fmt.Errorf("%s: active proposals must not use a date prefix; rename to <number>-<change-name>", filepath.Join(changesDir, entry.Name()))
+		}
 		if number, ok := activeChangeNumber(entry.Name()); ok && number > maxNumber {
 			maxNumber = number
 		}
@@ -140,7 +144,7 @@ func nextChangeNumber(root string) (int, error) {
 }
 
 func maxArchivedChangeNumber(archiveDir string) (int, error) {
-	// maxArchivedChangeNumber reads dated archive directory names like 2026-05-11-53-requirement.
+	// maxArchivedChangeNumber reads numeric archive names and legacy dated archive names.
 	entries, err := os.ReadDir(archiveDir)
 	if errors.Is(err, os.ErrNotExist) {
 		return 0, nil
@@ -171,13 +175,13 @@ func activeChangeNumber(name string) (int, bool) {
 }
 
 func archivedChangeNumber(name string) (int, bool) {
-	// archivedChangeNumber extracts the proposal number from dated archive directories.
-	matches := archivedChangeNumberRe.FindStringSubmatch(name)
-	if matches == nil {
-		return 0, false
+	// archivedChangeNumber accepts numeric archive names and legacy dated archive names.
+	// Legacy names are checked first so their year is never read as the proposal number.
+	if matches := legacyArchivedChangeNumberRe.FindStringSubmatch(name); matches != nil {
+		number, err := strconv.Atoi(matches[1])
+		return number, err == nil
 	}
-	number, err := strconv.Atoi(matches[1])
-	return number, err == nil
+	return activeChangeNumber(name)
 }
 
 func statusPayload(root, change string) map[string]any {

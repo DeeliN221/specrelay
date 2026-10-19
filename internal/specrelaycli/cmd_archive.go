@@ -42,8 +42,7 @@ func (c *cli) archiveCmd(args []string) error {
 	if err := acceptance.ValidateSubmissionEvidenceForChange(filepath.Dir(root), contract, change); err != nil {
 		return fmt.Errorf("%s: invalid submission evidence bundle: %w", change, err)
 	}
-	date := c.now().Format("2006-01-02")
-	archiveDir := filepath.Join(root, "changes", "archive", date+"-"+change)
+	archiveDir := filepath.Join(root, "changes", "archive", change)
 	if _, err := os.Stat(archiveDir); err == nil {
 		return fmt.Errorf("archive destination already exists: %s", archiveDir)
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -55,7 +54,7 @@ func (c *cli) archiveCmd(args []string) error {
 	if err := os.Rename(changeDir, archiveDir); err != nil {
 		return err
 	}
-	if err := rewriteArchivedChangeReferences(archiveDir, change, date+"-"+change); err != nil {
+	if err := rewriteArchivedChangeReferences(archiveDir, change); err != nil {
 		// Restore the active proposal when its contract cannot be rewritten, so a
 		// failed archive never leaves an unusable half-migrated change behind.
 		_ = os.Rename(archiveDir, changeDir)
@@ -65,11 +64,11 @@ func (c *cli) archiveCmd(args []string) error {
 	return nil
 }
 
-func rewriteArchivedChangeReferences(archiveDir, change, archivedChange string) error {
+func rewriteArchivedChangeReferences(archiveDir, change string) error {
 	// rewriteArchivedChangeReferences updates every UTF-8 text reference after
-	// tests move from docs/changes/<change> into the dated archive tree.
+	// tests move from docs/changes/<change> into docs/changes/archive/<change>.
 	oldPrefix := "docs/changes/" + change + "/"
-	newPrefix := "docs/changes/archive/" + archivedChange + "/"
+	newPrefix := "docs/changes/archive/" + change + "/"
 	testPrefix := newPrefix + "tests/"
 	return filepath.WalkDir(archiveDir, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {

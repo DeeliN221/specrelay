@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- No unreleased changes.
+- Archive proposals under their numeric `<number>-<change-name>` directory without a date prefix; legacy dated archives remain readable for proposal numbering.
 
 ## [v1.0.1] - 2026-10-13
 
