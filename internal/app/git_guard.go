@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,10 +32,10 @@ func gitSnapshot(repo string) (string, string, error) {
 	if err != nil {
 		headErr := strings.TrimSpace(string(head))
 		if isUnbornBranch(repo, gitPath) {
-			return "", "", fmt.Errorf(errNoInitialCommit)
+			return "", "", i18n.Errorf(errNoInitialCommit)
 		}
 		if headErr != "" {
-			return "", "", fmt.Errorf("git rev-parse --verify HEAD failed: %s", headErr)
+			return "", "", i18n.Errorf("git rev-parse --verify HEAD failed: %s", headErr)
 		}
 		return "", "", err
 	}
@@ -49,7 +50,7 @@ func gitSnapshot(repo string) (string, string, error) {
 	if err != nil {
 		statusErr := strings.TrimSpace(string(status))
 		if statusErr != "" {
-			return "", "", fmt.Errorf("git status --porcelain failed: %s", statusErr)
+			return "", "", i18n.Errorf("git status --porcelain failed: %s", statusErr)
 		}
 		return "", "", err
 	}
@@ -152,7 +153,7 @@ func gitChangeContentSnapshotForChange(repo, changeName string) (string, error) 
 	if err != nil {
 		detail := strings.TrimSpace(string(output))
 		if detail != "" {
-			return "", fmt.Errorf("git ls-files failed: %s", detail)
+			return "", i18n.Errorf("git ls-files failed: %s", detail)
 		}
 		return "", err
 	}
@@ -249,7 +250,7 @@ func gitWorktreeContentEntry(repo, path string) (string, bool, error) {
 			return "", false, err
 		}
 	default:
-		return "", false, fmt.Errorf("cannot snapshot non-regular repository path %q", path)
+		return "", false, i18n.Errorf("cannot snapshot non-regular repository path %q", path)
 	}
 	sum := sha256.Sum256(data)
 	executable := info.Mode().Perm()&0o111 != 0
@@ -267,11 +268,11 @@ func gitlinkContent(repo, full string) ([]byte, error) {
 	cmd.Dir = repo
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("read gitlink %q failed: %s", full, strings.TrimSpace(string(output)))
+		return nil, i18n.Errorf("read gitlink %q failed: %s", full, strings.TrimSpace(string(output)))
 	}
 	content, err := gitChangeContentSnapshotForChange(full, "")
 	if err != nil {
-		return nil, fmt.Errorf("read gitlink %q worktree failed: %w", full, err)
+		return nil, i18n.Errorf("read gitlink %q worktree failed: %w", full, err)
 	}
 	return []byte(strings.TrimSpace(string(output)) + "\x00" + content), nil
 }
@@ -479,7 +480,7 @@ func committedPaths(repo, beforeHead, afterHead string) ([]string, error) {
 	if err != nil {
 		detail := strings.TrimSpace(string(out))
 		if detail != "" {
-			return nil, fmt.Errorf("git diff --name-status failed: %s", detail)
+			return nil, i18n.Errorf("git diff --name-status failed: %s", detail)
 		}
 		return nil, err
 	}

@@ -6,13 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"sync"
 	"time"
 )
 
-var errGoDAGValidationRetry = errors.New("go-dag validation retry")
-var errGoDAGRetryableNode = errors.New("go-dag retryable node")
+var errGoDAGValidationRetry = i18n.New("go-dag validation retry")
+var errGoDAGRetryableNode = i18n.New("go-dag retryable node")
 
 // StartGoDAGJSON creates a sealed run and executes the WorkflowSpec without external schedulers.
 func (e *Engine) StartGoDAGJSON(ctx context.Context, changeName string, stdout io.Writer) error {
@@ -94,14 +95,14 @@ func (e *Engine) runGoDAGLocked(ctx context.Context, state State) error {
 			}
 		}
 		if len(ready) == 0 {
-			return fmt.Errorf("workflow has unresolved dependencies")
+			return i18n.Errorf("workflow has unresolved dependencies")
 		}
 		results := e.runGoDAGReadyNodes(ctx, state.RunID, ready)
 		for result := range results {
 			if errors.Is(result.err, errGoDAGValidationRetry) {
 				retries[result.nodeID]++
 				if retries[result.nodeID] >= maxRetries {
-					return fmt.Errorf("workflow node %s validation retry limit reached", result.nodeID)
+					return i18n.Errorf("workflow node %s validation retry limit reached", result.nodeID)
 				}
 				continue
 			}

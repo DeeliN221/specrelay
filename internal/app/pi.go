@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os/exec"
 	"strings"
@@ -67,7 +67,7 @@ func (p PiCLI) Run(ctx context.Context, repo, prompt, sessionID string, options 
 		return "", p.ResolveErr
 	}
 	if p.Path == "" {
-		return "", fmt.Errorf("cannot find the pi executable")
+		return "", i18n.Errorf("cannot find the pi executable")
 	}
 	args := piRunArgs(prompt, sessionID, options)
 	cmd := commandContext(ctx, p.Path, args...)
@@ -91,7 +91,7 @@ func (p PiCLI) Run(ctx context.Context, repo, prompt, sessionID string, options 
 		if stderrText == "" {
 			return observed, waitErr
 		}
-		return observed, fmt.Errorf("%w; stderr: %s", waitErr, stderrText)
+		return observed, i18n.Errorf("%w; stderr: %s", waitErr, stderrText)
 	}
 	return observed, nil
 }
@@ -168,7 +168,7 @@ func (p PiCLI) waitPiJSONLCommand(ctx context.Context, cmd *exec.Cmd, stdout io.
 			if cmd.Process != nil {
 				_ = cmd.Process.Kill()
 			}
-			return getObserved(), fmt.Errorf("%w: pi %s has produced no new output; terminated this process to prepare for continuation", errGoDAGRetryableNode, agentOutputIdleTimeout), nil
+			return getObserved(), i18n.Errorf("%w: pi %s has produced no new output; terminated this process to prepare for continuation", errGoDAGRetryableNode, agentOutputIdleTimeout), nil
 		}
 	}
 	return getObserved(), drainErr, waitErr

@@ -3,7 +3,7 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,7 +55,7 @@ func loadState(repo, runID string) (State, error) {
 		return State{}, err
 	}
 	if state.RunID != runID {
-		return State{}, fmt.Errorf("state run_id %q does not match requested run %q", state.RunID, runID)
+		return State{}, i18n.Errorf("state run_id %q does not match requested run %q", state.RunID, runID)
 	}
 	normalizeStateMaps(&state)
 	return state, nil
@@ -83,14 +83,14 @@ func mergeState(repo, runID string, mutate func(*State)) error {
 		return err
 	}
 	if state.RunID != runID {
-		return fmt.Errorf("state run_id %q does not match requested run %q", state.RunID, runID)
+		return i18n.Errorf("state run_id %q does not match requested run %q", state.RunID, runID)
 	}
 	normalizeStateMaps(&state)
 	if mutate != nil {
 		mutate(&state)
 	}
 	if state.RunID != runID {
-		return fmt.Errorf("state mutation changed run_id from %q to %q", runID, state.RunID)
+		return i18n.Errorf("state mutation changed run_id from %q to %q", runID, state.RunID)
 	}
 	normalizeStateMaps(&state)
 	refreshStateProcesses(&state)
@@ -100,7 +100,7 @@ func mergeState(repo, runID string, mutate func(*State)) error {
 // writeStateFileLocked writes state.json while the caller holds both process and file locks.
 func writeStateFileLocked(repo, runID string, state State) error {
 	if state.RunID != runID {
-		return fmt.Errorf("state run_id %q does not match write run %q", state.RunID, runID)
+		return i18n.Errorf("state run_id %q does not match write run %q", state.RunID, runID)
 	}
 	if err := os.MkdirAll(runDir(repo, runID), 0o755); err != nil {
 		return err
@@ -196,7 +196,7 @@ func timestampAfter(left, right string) bool {
 // validateRunID rejects run identifiers that could escape the runs directory.
 func validateRunID(runID string) error {
 	if runID == "" || runID == "." || runID == ".." || filepath.IsAbs(runID) || strings.Contains(runID, "..") || strings.ContainsAny(runID, `/\`) {
-		return fmt.Errorf("invalid run_id %q", runID)
+		return i18n.Errorf("invalid run_id %q", runID)
 	}
 	return nil
 }

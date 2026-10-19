@@ -2,7 +2,7 @@
 package app
 
 import (
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"strings"
 )
 
@@ -17,7 +17,7 @@ func parallelConfigFromInput(input parallelConfigInput, base ParallelConfig) (Pa
 		for name, group := range input.Groups {
 			parsed, err := parallelGroupConfigFromInput(group)
 			if err != nil {
-				return ParallelConfig{}, fmt.Errorf("parallel.groups.%s: %w", name, err)
+				return ParallelConfig{}, i18n.Errorf("parallel.groups.%s: %w", name, err)
 			}
 			config.Groups[name] = parsed
 		}
@@ -43,13 +43,13 @@ func parallelGroupConfigFromInput(input parallelGroupConfigInput) (ParallelGroup
 			tool = "pi"
 		}
 		if strings.TrimSpace(member.Name) == "" {
-			return ParallelGroupConfig{}, fmt.Errorf("members[%d].name must not be empty", i)
+			return ParallelGroupConfig{}, i18n.Errorf("members[%d].name must not be empty", i)
 		}
 		if strings.TrimSpace(member.Purpose) == "" {
-			return ParallelGroupConfig{}, fmt.Errorf("members[%d].purpose must not be empty", i)
+			return ParallelGroupConfig{}, i18n.Errorf("members[%d].purpose must not be empty", i)
 		}
 		if tool != "" && !validAgentTool(tool) {
-			return ParallelGroupConfig{}, fmt.Errorf("members[%d].tool unknown agent tool %q", i, tool)
+			return ParallelGroupConfig{}, i18n.Errorf("members[%d].tool unknown agent tool %q", i, tool)
 		}
 		group.Members = append(group.Members, ParallelMemberConfig{
 			Name:     member.Name,
@@ -67,13 +67,13 @@ func parallelGroupConfigFromInput(input parallelGroupConfigInput) (ParallelGroup
 func rejectStageBeforeLegacyMemberFields(member parallelMemberConfigInput, index int) error {
 	// stages.<stage>.before[] is the tree-shaped config surface and rejects legacy aliases.
 	if member.CLI != "" {
-		return fmt.Errorf("members[%d].cli is a removed legacy field; use agent", index)
+		return i18n.Errorf("members[%d].cli is a removed legacy field; use agent", index)
 	}
 	if member.Tool != "" {
-		return fmt.Errorf("members[%d].tool is a removed legacy field; use agent", index)
+		return i18n.Errorf("members[%d].tool is a removed legacy field; use agent", index)
 	}
 	if member.Stage != "" {
-		return fmt.Errorf("members[%d].stage is a removed legacy field; stage is determined by stages.<stage>.before", index)
+		return i18n.Errorf("members[%d].stage is a removed legacy field; stage is determined by stages.<stage>.before", index)
 	}
 	return nil
 }
@@ -89,19 +89,19 @@ func parallelConfigFromStages(stages map[string]stageOptionsInput, base Parallel
 		}
 		topology, ok := parallelTopologyForStage(stage)
 		if !ok {
-			return ParallelConfig{}, fmt.Errorf("stages.%s.before is not supported", stage)
+			return ParallelConfig{}, i18n.Errorf("stages.%s.before is not supported", stage)
 		}
 		members := make([]parallelMemberConfigInput, 0, len(input.Before))
 		for i, member := range input.Before {
 			if err := rejectStageBeforeLegacyMemberFields(member, i); err != nil {
-				return ParallelConfig{}, fmt.Errorf("stages.%s.before: %w", stage, err)
+				return ParallelConfig{}, i18n.Errorf("stages.%s.before: %w", stage, err)
 			}
 			member.Stage = topology.Anchor
 			members = append(members, member)
 		}
 		group, err := parallelGroupConfigFromInput(parallelGroupConfigInput{Mode: topology.Mode, Members: members})
 		if err != nil {
-			return ParallelConfig{}, fmt.Errorf("stages.%s.before: %w", stage, err)
+			return ParallelConfig{}, i18n.Errorf("stages.%s.before: %w", stage, err)
 		}
 		if config.Groups == nil {
 			config.Groups = map[string]ParallelGroupConfig{}
@@ -122,15 +122,15 @@ func validateParallelConfig(config ParallelConfig) error {
 	for name, group := range config.Groups {
 		allowedStages, ok := allowedParallelMemberStages(name)
 		if !ok {
-			return fmt.Errorf("parallel.groups.%s unknown parallel group", name)
+			return i18n.Errorf("parallel.groups.%s unknown parallel group", name)
 		}
 		switch group.Mode {
 		case "advisory", "gate_input":
 		default:
-			return fmt.Errorf("parallel.groups.%s.mode is invalid: %q", name, group.Mode)
+			return i18n.Errorf("parallel.groups.%s.mode is invalid: %q", name, group.Mode)
 		}
 		if len(group.Members) == 0 {
-			return fmt.Errorf("parallel.groups.%s.members must not be empty", name)
+			return i18n.Errorf("parallel.groups.%s.members must not be empty", name)
 		}
 		for i, member := range group.Members {
 			stage := strings.TrimSpace(member.Stage)
@@ -138,7 +138,7 @@ func validateParallelConfig(config ParallelConfig) error {
 				continue
 			}
 			if !allowedStages[stage] {
-				return fmt.Errorf("parallel.groups.%s.members[%d].stage cannot attach to %q", name, i, stage)
+				return i18n.Errorf("parallel.groups.%s.members[%d].stage cannot attach to %q", name, i, stage)
 			}
 		}
 	}

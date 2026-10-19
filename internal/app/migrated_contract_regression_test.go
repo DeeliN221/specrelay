@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"gopkg.in/yaml.v3"
 )
 
@@ -84,7 +85,7 @@ func TestCommitEvidencePromptContract(t *testing.T) {
 		{stage: "qa", wants: []string{"demo", "Remain read-only", "before-failure", "after-success", "tests/evidence/proposals/<change>/**"}},
 		{stage: "archive", wants: []string{"engine", "delivery_base_head", "exactly one complete delivery commit", "Do not amend", "tests/evidence/proposals/<change>/**", "evidence", "final evidence at HEAD", "test-results/**"}},
 	}
-	defaults := defaultPromptSet()
+	defaults := defaultPromptSet(i18n.English)
 	rootConfigData, err := os.ReadFile(filepath.Join("..", "..", "specrelay-flow.yaml"))
 	if err != nil {
 		t.Fatal(err)

@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -65,9 +65,9 @@ func ValidateChange(repo, changeName string) error {
 	}
 	if !out.Valid {
 		if message := strings.Join(out.Errors, "; "); message != "" {
-			return fmt.Errorf("%s is not a valid specrelay change: %s", changeName, message)
+			return i18n.Errorf("%s is not a valid specrelay change: %s", changeName, message)
 		}
-		return fmt.Errorf("%s is not a valid specrelay change", changeName)
+		return i18n.Errorf("%s is not a valid specrelay change", changeName)
 	}
 	return cmdErr
 }
@@ -87,7 +87,7 @@ func runSpecrelayJSON(repo string, args []string, target any) error {
 	cmdErr := cmd.Run()
 	if stdout.Len() > 0 {
 		if err := json.Unmarshal(stdout.Bytes(), target); err != nil {
-			return fmt.Errorf("parse specrelay %s JSON failed: %w", strings.Join(args, " "), err)
+			return i18n.Errorf("parse specrelay %s JSON failed: %w", strings.Join(args, " "), err)
 		}
 	}
 	if cmdErr != nil {
@@ -95,10 +95,10 @@ func runSpecrelayJSON(repo string, args []string, target any) error {
 		if message == "" {
 			message = cmdErr.Error()
 		}
-		return fmt.Errorf("specrelay %s execution failed: %s", strings.Join(args, " "), message)
+		return i18n.Errorf("specrelay %s execution failed: %s", strings.Join(args, " "), message)
 	}
 	if stdout.Len() == 0 {
-		return fmt.Errorf("specrelay %s did not output JSON", strings.Join(args, " "))
+		return i18n.Errorf("specrelay %s did not output JSON", strings.Join(args, " "))
 	}
 	return nil
 }
@@ -109,10 +109,10 @@ func changePath(repo, name string) string {
 
 func validateChangeNameForPath(name string) error {
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("change name must not be empty")
+		return i18n.Errorf("change name must not be empty")
 	}
 	if filepath.IsAbs(name) || strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) {
-		return fmt.Errorf("change name %q contains an invalid path segment", name)
+		return i18n.Errorf("change name %q contains an invalid path segment", name)
 	}
 	return nil
 }
@@ -121,7 +121,7 @@ func validateChangeNameForPath(name string) error {
 func ParseChangeSelection(input string, changes []Change) ([]Change, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
-		return nil, fmt.Errorf("invalid selection")
+		return nil, i18n.Errorf("invalid selection")
 	}
 	if strings.EqualFold(trimmed, "a") {
 		return append([]Change(nil), changes...), nil
@@ -131,12 +131,12 @@ func ParseChangeSelection(input string, changes []Change) ([]Change, error) {
 	for _, part := range strings.Split(trimmed, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
-			return nil, fmt.Errorf("invalid selection")
+			return nil, i18n.Errorf("invalid selection")
 		}
 		if strings.Contains(part, "-") {
 			bounds := strings.Split(part, "-")
 			if len(bounds) != 2 {
-				return nil, fmt.Errorf("invalid selection")
+				return nil, i18n.Errorf("invalid selection")
 			}
 			start, err := parseSelectionNumber(bounds[0], len(changes))
 			if err != nil {
@@ -147,7 +147,7 @@ func ParseChangeSelection(input string, changes []Change) ([]Change, error) {
 				return nil, err
 			}
 			if start > end {
-				return nil, fmt.Errorf("invalid selection")
+				return nil, i18n.Errorf("invalid selection")
 			}
 			for i := start; i <= end; i++ {
 				if !seen[i] {
@@ -193,7 +193,7 @@ func SortChangesByNumericPrefix(changes []Change) []Change {
 func parseSelectionNumber(input string, max int) (int, error) {
 	n, err := strconv.Atoi(strings.TrimSpace(input))
 	if err != nil || n < 1 || n > max {
-		return 0, fmt.Errorf("invalid selection")
+		return 0, i18n.Errorf("invalid selection")
 	}
 	return n, nil
 }

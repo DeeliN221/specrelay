@@ -4,6 +4,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"regexp"
@@ -72,11 +73,11 @@ type WorkflowDisplay struct {
 func runGraph(repo string, args []string, stdout io.Writer) error {
 	changeName, err := requireFlagValue(args, "--change")
 	if err != nil {
-		return fmt.Errorf("Usage: specrelay flow graph --change <change-name> --format json|mermaid")
+		return i18n.Errorf("Usage: specrelay flow graph --change <change-name> --format json|mermaid")
 	}
 	format, err := requireFlagValue(args, "--format")
 	if err != nil {
-		return fmt.Errorf("Usage: specrelay flow graph --change <change-name> --format json|mermaid")
+		return i18n.Errorf("Usage: specrelay flow graph --change <change-name> --format json|mermaid")
 	}
 	state, err := latestSealedGraphState(repo, changeName)
 	if err != nil {
@@ -110,10 +111,10 @@ func runGraph(repo string, args []string, stdout io.Writer) error {
 		if state != nil && usesQualityLoop(state.Workflow) {
 			graph = appendQualityLoopMermaidInstances(graph, *state)
 		}
-		_, err := fmt.Fprint(stdout, graph)
+		_, err := i18n.Fprint(stdout, graph)
 		return err
 	default:
-		return fmt.Errorf("unknown graph format %q; choose json or mermaid", format)
+		return i18n.Errorf("unknown graph format %q; choose json or mermaid", format)
 	}
 }
 

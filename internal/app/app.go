@@ -10,13 +10,16 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/DeeliN221/specrelay/internal/i18n"
 )
 
 // Run parses command arguments and starts the interactive workflow.
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	i18n.SetLanguage(EffectiveLanguageForCWD())
 	if len(args) > 0 {
 		if args[0] == "--version" {
-			fmt.Fprintln(stdout, resolvedVersion())
+			i18n.Fprintln(stdout, resolvedVersion())
 			return nil
 		}
 		if args[0] == "--help" || args[0] == "-h" {
@@ -34,7 +37,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		}
 		if args[0] == "update" {
 			if len(args) != 1 {
-				return fmt.Errorf("Usage: specrelay flow update")
+				return i18n.Errorf("Usage: specrelay flow update")
 			}
 			return runUpdate(stdout)
 		}
@@ -78,7 +81,7 @@ func runWithRepository(args []string, stdin io.Reader, stdout io.Writer) error {
 		if spec, ok := flowCommandByName(args[0]); ok {
 			return spec.Handler(ctx, args, stdout, repo, engine)
 		}
-		return fmt.Errorf("unknown command %q", args[0])
+		return i18n.Errorf("unknown command %q", args[0])
 	}
 
 	return interactive(ctx, stdin, stdout, repo, engine)
@@ -91,7 +94,7 @@ func submitAllActiveChanges(ctx context.Context, stdout io.Writer, repo string, 
 		return err
 	}
 	if len(changes) == 0 {
-		fmt.Fprintln(stdout, "No active change proposals")
+		i18n.Fprintln(stdout, "No active change proposals")
 		return nil
 	}
 	batchID, err := FindUnfinishedBatch(repo)
@@ -105,10 +108,10 @@ func submitAllActiveChanges(ctx context.Context, stdout io.Writer, repo string, 
 		}
 		appendable := FilterChangesNotInBatch(SortChangesByNumericPrefix(changes), batch)
 		if len(appendable) == 0 {
-			fmt.Fprintf(stdout, "Batch %s is already running; no active changes to append\n", batchID)
+			i18n.Fprintf(stdout, "Batch %s is already running; no active changes to append\n", batchID)
 			return nil
 		}
-		fmt.Fprintf(stdout, "Appending new active changes to running batch %s\n", batchID)
+		i18n.Fprintf(stdout, "Appending new active changes to running batch %s\n", batchID)
 		return appendSelectedBatchChanges(stdout, repo, batchID, appendable)
 	}
 	return engine.SubmitBatch(ctx, changes)
@@ -130,7 +133,7 @@ func GitRoot(dir string) (string, error) {
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("current directory is not inside a Git repository: %w", err)
+		return "", i18n.Errorf("current directory is not inside a Git repository: %w", err)
 	}
 	return filepath.Clean(strings.TrimSpace(string(out))), nil
 }
@@ -139,35 +142,35 @@ func GitRoot(dir string) (string, error) {
 func printStoppedHistory(stdout io.Writer, repo string, batches []BatchState, runs []State) {
 	batchRefs, _ := ListBatchRefs(repo)
 	runRefs, _ := ListRunRefs(repo)
-	fmt.Fprintln(stdout, "Stopped historical tasks:")
+	i18n.Fprintln(stdout, "Stopped historical tasks:")
 	for _, batch := range batches {
 		alias := batchAliasForID(batchRefs, batch.BatchID)
-		fmt.Fprintf(stdout, "- batch %s %s %s\n", alias, batch.BatchID, batch.Status)
+		i18n.Fprintf(stdout, "- batch %s %s %s\n", alias, batch.BatchID, batch.Status)
 		if batch.FailedChange != "" {
-			fmt.Fprintf(stdout, "  change: %s\n", batch.FailedChange)
+			i18n.Fprintf(stdout, "  change: %s\n", batch.FailedChange)
 		}
 		if batch.FailedRunID != "" {
 			runAlias := RunAliasForID(runRefs, batch.FailedRunID)
 			if runAlias == "" {
 				runAlias = batch.FailedRunID
 			}
-			fmt.Fprintf(stdout, "  run: %s %s\n", runAlias, batch.FailedRunID)
+			i18n.Fprintf(stdout, "  run: %s %s\n", runAlias, batch.FailedRunID)
 		}
 		if summary := humanBatchFailureSummary(repo, batch, batch.FailedChange, batch.FailedRunID); summary != "" {
-			fmt.Fprintf(stdout, "  reason: %s\n", summary)
+			i18n.Fprintf(stdout, "  reason: %s\n", summary)
 		}
 		if batch.Status == batchStatusFailed {
 			if isBatchRestartRecoverable(repo, batch) {
-				fmt.Fprintf(stdout, "  Tip: run %s to remove the failed record and continue this batch\n", restartCommandForAlias(alias))
-				fmt.Fprintf(stdout, "  Archive: run %s to archive the failure and start a new workflow\n", archiveCommandForAlias(alias))
+				i18n.Fprintf(stdout, "  Tip: run %s to remove the failed record and continue this batch\n", restartCommandForAlias(alias))
+				i18n.Fprintf(stdout, "  Archive: run %s to archive the failure and start a new workflow\n", archiveCommandForAlias(alias))
 			} else {
-				fmt.Fprintf(stdout, "  Archive: run %s to archive the failure and start a new workflow\n", archiveCommandForAlias(alias))
-				fmt.Fprintf(stdout, "  Cleanup: run specrelay flow clean to remove failed or invalid runtime state for this project\n")
-				fmt.Fprintf(stdout, "        This removes only specrelay flow records; it does not revert code changes\n")
+				i18n.Fprintf(stdout, "  Archive: run %s to archive the failure and start a new workflow\n", archiveCommandForAlias(alias))
+				i18n.Fprintf(stdout, "  Cleanup: run specrelay flow clean to remove failed or invalid runtime state for this project\n")
+				i18n.Fprintf(stdout, "        This removes only specrelay flow records; it does not revert code changes\n")
 			}
 		} else if batch.Status == batchStatusAborted {
-			fmt.Fprintf(stdout, "  Cleanup: run specrelay flow clean to remove failed or invalid runtime state for this project\n")
-			fmt.Fprintf(stdout, "        This removes only specrelay flow records; it does not revert code changes\n")
+			i18n.Fprintf(stdout, "  Cleanup: run specrelay flow clean to remove failed or invalid runtime state for this project\n")
+			i18n.Fprintf(stdout, "        This removes only specrelay flow records; it does not revert code changes\n")
 		}
 	}
 	for _, state := range runs {
@@ -175,23 +178,23 @@ func printStoppedHistory(stdout io.Writer, repo string, batches []BatchState, ru
 		if runAlias == "" {
 			runAlias = state.RunID
 		}
-		fmt.Fprintf(stdout, "- workflow %s %s %s\n", runAlias, state.RunID, state.Status)
+		i18n.Fprintf(stdout, "- workflow %s %s %s\n", runAlias, state.RunID, state.Status)
 		if state.ChangeName != "" {
-			fmt.Fprintf(stdout, "  change: %s\n", state.ChangeName)
+			i18n.Fprintf(stdout, "  change: %s\n", state.ChangeName)
 		}
 		if reason := stoppedRunReason(state); reason != "" {
-			fmt.Fprintf(stdout, "  reason: %s\n", reason)
+			i18n.Fprintf(stdout, "  reason: %s\n", reason)
 		}
 		if state.BatchID == "" {
 			if isRestartableRunCandidate(repo, state) {
-				fmt.Fprintf(stdout, "  Tip: run %s to restart this workflow\n", restartCommandForAlias(runAlias))
-				fmt.Fprintf(stdout, "  Archive: run %s to archive the failure and start a new workflow\n", archiveCommandForAlias(runAlias))
+				i18n.Fprintf(stdout, "  Tip: run %s to restart this workflow\n", restartCommandForAlias(runAlias))
+				i18n.Fprintf(stdout, "  Archive: run %s to archive the failure and start a new workflow\n", archiveCommandForAlias(runAlias))
 			} else {
 				if isArchivableRun(state) {
-					fmt.Fprintf(stdout, "  Archive: run %s to archive the failure and start a new workflow\n", archiveCommandForAlias(runAlias))
+					i18n.Fprintf(stdout, "  Archive: run %s to archive the failure and start a new workflow\n", archiveCommandForAlias(runAlias))
 				}
-				fmt.Fprintf(stdout, "  Cleanup: run specrelay flow clean to remove failed or invalid runtime state for this project\n")
-				fmt.Fprintf(stdout, "        This removes only specrelay flow records; it does not revert code changes\n")
+				i18n.Fprintf(stdout, "  Cleanup: run specrelay flow clean to remove failed or invalid runtime state for this project\n")
+				i18n.Fprintf(stdout, "        This removes only specrelay flow records; it does not revert code changes\n")
 			}
 		}
 	}
@@ -362,7 +365,7 @@ func printChanges(stdout io.Writer, repo string) error {
 		return err
 	}
 	for _, change := range changes {
-		fmt.Fprintln(stdout, change.Name)
+		i18n.Fprintln(stdout, change.Name)
 	}
 	return nil
 }
@@ -372,7 +375,7 @@ func printHumanStatus(stdout io.Writer, repo string, args ...string) error {
 	kind, ref, err := ResolveStatusTarget(repo, args)
 	if err != nil {
 		if len(args) == 0 && err.Error() == "no specrelay flow run" {
-			fmt.Fprintln(stdout, err)
+			i18n.Fprintln(stdout, err)
 			return nil
 		}
 		return err
@@ -388,7 +391,7 @@ func printHumanStatus(stdout io.Writer, repo string, args ...string) error {
 		}
 		lines := batchStatusLines(repo, &batch, ref.Alias, runRefs)
 		for _, line := range lines {
-			fmt.Fprintln(stdout, line)
+			i18n.Fprintln(stdout, line)
 		}
 		printUpdateHint(stdout)
 		return nil
@@ -399,7 +402,7 @@ func printHumanStatus(stdout io.Writer, repo string, args ...string) error {
 		return err
 	}
 	for _, line := range runProposalStatusLines(repo, state, ref.Alias, "→") {
-		fmt.Fprintln(stdout, line)
+		i18n.Fprintln(stdout, line)
 	}
 	printUpdateHint(stdout)
 	return nil
@@ -416,72 +419,72 @@ func projectName(repo string) string {
 
 // printHelp writes supported command-line options.
 func printHelp(stdout io.Writer) {
-	fmt.Fprintln(stdout, "specrelay flow executes specrelay changes through a controlled Codex/Pi workflow.")
+	i18n.Fprintln(stdout, "specrelay flow executes specrelay changes through a controlled Codex/Pi workflow.")
 	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Usage: ")
-	fmt.Fprintln(stdout, "  specrelay flow")
-	fmt.Fprintln(stdout, "  specrelay flow config [--global]")
-	fmt.Fprintln(stdout, "  specrelay flow run | specrelay flow r")
-	fmt.Fprintln(stdout, "  specrelay flow status")
-	fmt.Fprintln(stdout, "  specrelay flow restart")
-	fmt.Fprintln(stdout, "  specrelay flow stop")
-	fmt.Fprintln(stdout, "  specrelay flow archive")
-	fmt.Fprintln(stdout, "  specrelay flow loop")
-	fmt.Fprintln(stdout, "  specrelay flow clean [--agent-sessions] [--dry-run] [--json]")
-	fmt.Fprintln(stdout, "  specrelay flow watch")
-	fmt.Fprintln(stdout, "  specrelay flow update")
-	fmt.Fprintln(stdout, "  specrelay flow --list-changes")
-	fmt.Fprintln(stdout, "  specrelay flow --run <change-name>")
-	fmt.Fprintln(stdout, "  specrelay flow --resume")
-	fmt.Fprintln(stdout, "  specrelay flow validate-review --artifact <artifact-path> [--json]")
-	fmt.Fprintln(stdout, "  specrelay flow validate-repair --artifact <artifact-path> [--json]")
-	fmt.Fprintln(stdout, "  specrelay flow validate-qa --artifact <artifact-path> --acceptance <acceptance-path> [--json]")
-	fmt.Fprintln(stdout, "  specrelay flow --version")
+	i18n.Fprintln(stdout, "Usage: ")
+	i18n.Fprintln(stdout, "  specrelay flow")
+	i18n.Fprintln(stdout, "  specrelay flow config [--global]")
+	i18n.Fprintln(stdout, "  specrelay flow run | specrelay flow r")
+	i18n.Fprintln(stdout, "  specrelay flow status")
+	i18n.Fprintln(stdout, "  specrelay flow restart")
+	i18n.Fprintln(stdout, "  specrelay flow stop")
+	i18n.Fprintln(stdout, "  specrelay flow archive")
+	i18n.Fprintln(stdout, "  specrelay flow loop")
+	i18n.Fprintln(stdout, "  specrelay flow clean [--agent-sessions] [--dry-run] [--json]")
+	i18n.Fprintln(stdout, "  specrelay flow watch")
+	i18n.Fprintln(stdout, "  specrelay flow update")
+	i18n.Fprintln(stdout, "  specrelay flow --list-changes")
+	i18n.Fprintln(stdout, "  specrelay flow --run <change-name>")
+	i18n.Fprintln(stdout, "  specrelay flow --resume")
+	i18n.Fprintln(stdout, "  specrelay flow validate-review --artifact <artifact-path> [--json]")
+	i18n.Fprintln(stdout, "  specrelay flow validate-repair --artifact <artifact-path> [--json]")
+	i18n.Fprintln(stdout, "  specrelay flow validate-qa --artifact <artifact-path> --acceptance <acceptance-path> [--json]")
+	i18n.Fprintln(stdout, "  specrelay flow --version")
 	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Interactive commands:")
-	fmt.Fprintln(stdout, "  specrelay flow                         Plan, select an active change, or resume a run")
-	fmt.Fprintln(stdout, "  specrelay flow clean [--agent-sessions] [--dry-run] [--json] Clean failed or invalid runtime state for this project")
-	fmt.Fprintln(stdout, "  specrelay flow config [--global] Write repository specrelay-flow.yaml or user ~/specrelay-flow.yaml")
-	fmt.Fprintln(stdout, "  specrelay flow run | specrelay flow r              Select all active changes and start the task queue")
-	fmt.Fprintln(stdout, "  specrelay flow status                  Print progress of the latest run")
-	fmt.Fprintln(stdout, "  specrelay flow restart [-bN|-wN]       Restart the latest failed or interrupted batch/workflow")
-	fmt.Fprintln(stdout, "  specrelay flow stop                    Stop the active batch workflow")
-	fmt.Fprintln(stdout, "  specrelay flow archive [-bN|-wN]       Archive the latest failed batch/workflow state")
-	fmt.Fprintln(stdout, "  specrelay flow loop                    Monitor each minute; archive failures and continue remaining changes")
-	fmt.Fprintln(stdout, "  specrelay flow watch [-bN|-wN]         Continuously refresh active task status")
-	fmt.Fprintln(stdout, "  specrelay flow update                  Update specrelay and print backup/rollback commands")
-	fmt.Fprintln(stdout, "  specrelay flow --list-changes          Print active docs/changes names")
-	fmt.Fprintln(stdout, "  specrelay flow --run <change-name>     Start an appendable queue for an active change")
-	fmt.Fprintln(stdout, "  specrelay flow --resume                Resume the latest unfinished run")
+	i18n.Fprintln(stdout, "Interactive commands:")
+	i18n.Fprintln(stdout, "  specrelay flow                         Plan, select an active change, or resume a run")
+	i18n.Fprintln(stdout, "  specrelay flow clean [--agent-sessions] [--dry-run] [--json] Clean failed or invalid runtime state for this project")
+	i18n.Fprintln(stdout, "  specrelay flow config [--global] Write repository specrelay-flow.yaml or user ~/specrelay-flow.yaml")
+	i18n.Fprintln(stdout, "  specrelay flow run | specrelay flow r              Select all active changes and start the task queue")
+	i18n.Fprintln(stdout, "  specrelay flow status                  Print progress of the latest run")
+	i18n.Fprintln(stdout, "  specrelay flow restart [-bN|-wN]       Restart the latest failed or interrupted batch/workflow")
+	i18n.Fprintln(stdout, "  specrelay flow stop                    Stop the active batch workflow")
+	i18n.Fprintln(stdout, "  specrelay flow archive [-bN|-wN]       Archive the latest failed batch/workflow state")
+	i18n.Fprintln(stdout, "  specrelay flow loop                    Monitor each minute; archive failures and continue remaining changes")
+	i18n.Fprintln(stdout, "  specrelay flow watch [-bN|-wN]         Continuously refresh active task status")
+	i18n.Fprintln(stdout, "  specrelay flow update                  Update specrelay and print backup/rollback commands")
+	i18n.Fprintln(stdout, "  specrelay flow --list-changes          Print active docs/changes names")
+	i18n.Fprintln(stdout, "  specrelay flow --run <change-name>     Start an appendable queue for an active change")
+	i18n.Fprintln(stdout, "  specrelay flow --resume                Resume the latest unfinished run")
 	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Runner JSON commands:")
-	fmt.Fprintln(stdout, "  specrelay flow validate-review --artifact <artifact-path> [--json]")
-	fmt.Fprintln(stdout, "  specrelay flow validate-repair --artifact <artifact-path> [--json]")
-	fmt.Fprintln(stdout, "  specrelay flow validate-qa --artifact <artifact-path> --acceptance <acceptance-path> [--json]")
-	fmt.Fprintln(stdout, "  specrelay flow contract --json")
-	fmt.Fprintln(stdout, "  specrelay flow list-changes --json")
-	fmt.Fprintln(stdout, "  specrelay flow run --change <change-name> --json")
-	fmt.Fprintln(stdout, "  specrelay flow run-acceptance --change <change-name> --json")
-	fmt.Fprintln(stdout, "  specrelay flow resume --run-id <run-id> --json")
-	fmt.Fprintln(stdout, "  specrelay flow restart --run-id <run-id> --json")
-	fmt.Fprintln(stdout, "  specrelay flow restart --batch-id <batch-id> --json")
-	fmt.Fprintln(stdout, "  specrelay flow status --run-id <run-id> --json")
-	fmt.Fprintln(stdout, "  specrelay flow abort --run-id <run-id> --json")
-	fmt.Fprintln(stdout, "  specrelay flow batch --batch-id <batch-id> --json")
-	fmt.Fprintln(stdout, "  specrelay flow batch append --batch-id <batch-id> --change <change-name> --json")
+	i18n.Fprintln(stdout, "Runner JSON commands:")
+	i18n.Fprintln(stdout, "  specrelay flow validate-review --artifact <artifact-path> [--json]")
+	i18n.Fprintln(stdout, "  specrelay flow validate-repair --artifact <artifact-path> [--json]")
+	i18n.Fprintln(stdout, "  specrelay flow validate-qa --artifact <artifact-path> --acceptance <acceptance-path> [--json]")
+	i18n.Fprintln(stdout, "  specrelay flow contract --json")
+	i18n.Fprintln(stdout, "  specrelay flow list-changes --json")
+	i18n.Fprintln(stdout, "  specrelay flow run --change <change-name> --json")
+	i18n.Fprintln(stdout, "  specrelay flow run-acceptance --change <change-name> --json")
+	i18n.Fprintln(stdout, "  specrelay flow resume --run-id <run-id> --json")
+	i18n.Fprintln(stdout, "  specrelay flow restart --run-id <run-id> --json")
+	i18n.Fprintln(stdout, "  specrelay flow restart --batch-id <batch-id> --json")
+	i18n.Fprintln(stdout, "  specrelay flow status --run-id <run-id> --json")
+	i18n.Fprintln(stdout, "  specrelay flow abort --run-id <run-id> --json")
+	i18n.Fprintln(stdout, "  specrelay flow batch --batch-id <batch-id> --json")
+	i18n.Fprintln(stdout, "  specrelay flow batch append --batch-id <batch-id> --change <change-name> --json")
 	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Files:")
-	fmt.Fprintln(stdout, "  specrelay-flow.yaml                    Repository workflow configuration; create with specrelay flow config")
-	fmt.Fprintln(stdout, "  ~/specrelay-flow.yaml                  User-level workflow defaults")
-	fmt.Fprintln(stdout, "  docs/changes/<name>/       active specrelay changes")
-	fmt.Fprintln(stdout, "  ${XDG_STATE_HOME:-~/.local/state}/specrelay/flow/repos/<repo-key>/runs/<run-id>/")
-	fmt.Fprintln(stdout, "                             Sealed run state, prompt snapshots, and artifacts")
+	i18n.Fprintln(stdout, "Files:")
+	i18n.Fprintln(stdout, "  specrelay-flow.yaml                    Repository workflow configuration; create with specrelay flow config")
+	i18n.Fprintln(stdout, "  ~/specrelay-flow.yaml                  User-level workflow defaults")
+	i18n.Fprintln(stdout, "  docs/changes/<name>/       active specrelay changes")
+	i18n.Fprintln(stdout, "  ${XDG_STATE_HOME:-~/.local/state}/specrelay/flow/repos/<repo-key>/runs/<run-id>/")
+	i18n.Fprintln(stdout, "                             Sealed run state, prompt snapshots, and artifacts")
 }
 
 // printStageChecklist writes a plain text workflow status summary.
 func printStageChecklist(stdout io.Writer, state State) {
 	for _, line := range compactStatusLines(buildHumanStatusView("", state, state.RunID, "→")) {
-		fmt.Fprintln(stdout, line)
+		i18n.Fprintln(stdout, line)
 	}
 }
 
@@ -493,10 +496,10 @@ func printHumanStageChecklist(stdout io.Writer, state State) {
 	}
 	_ = runtime
 	for _, line := range compactStatusLines(buildHumanStatusView("", state, state.RunID, "→")) {
-		fmt.Fprintln(stdout, line)
+		i18n.Fprintln(stdout, line)
 	}
 	if state.BatchID == "" && isRestartableRunState(state) && (state.Status == statusFailed || state.Status == statusInterrupted) {
-		fmt.Fprintln(stdout, "Tip: run specrelay flow restart to restart the latest failed task")
+		i18n.Fprintln(stdout, "Tip: run specrelay flow restart to restart the latest failed task")
 	}
 }
 
@@ -508,10 +511,10 @@ func printHumanStatusStageChecklist(stdout io.Writer, repo string, state State) 
 	}
 	_ = runtime
 	for _, line := range compactStatusLines(buildHumanStatusView(repo, state, state.RunID, "→")) {
-		fmt.Fprintln(stdout, line)
+		i18n.Fprintln(stdout, line)
 	}
 	if state.BatchID == "" && isRestartableRunState(state) && (state.Status == statusFailed || state.Status == statusInterrupted) {
-		fmt.Fprintln(stdout, "Tip: run specrelay flow restart to restart the latest failed task")
+		i18n.Fprintln(stdout, "Tip: run specrelay flow restart to restart the latest failed task")
 	}
 }
 
@@ -519,10 +522,10 @@ func printHumanStatusStageChecklist(stdout io.Writer, repo string, state State) 
 func sessionRoleLabel(role string) string {
 	for _, workflowRole := range statusRoles() {
 		if workflowRole.Session == role {
-			return workflowRole.Label
+			return i18n.T(workflowRole.Label)
 		}
 	}
-	return "write"
+	return i18n.T("write")
 }
 
 // supportsInPlaceProgress reports whether stdout is a terminal-like file.
@@ -543,7 +546,7 @@ func runWatch(stdout io.Writer, repo string, args ...string) error {
 	targetKind, targetRef, err := resolveWatchTarget(repo, args)
 	if err != nil {
 		if strings.Contains(err.Error(), "no active batch or workflow") {
-			fmt.Fprintln(stdout, "No active batch or workflow")
+			i18n.Fprintln(stdout, "No active batch or workflow")
 			return nil
 		}
 		return err
@@ -563,19 +566,19 @@ func runWatch(stdout io.Writer, repo string, args ...string) error {
 		frameKind, frameRef, frameErr := resolveWatchFrameTarget(repo, explicitTarget, targetKind, targetRef)
 		if frameErr != nil {
 			if tty && frameIdx > 0 {
-				fmt.Fprint(stdout, "\x1b[H\x1b[2J")
+				i18n.Fprint(stdout, "\x1b[H\x1b[2J")
 			}
-			fmt.Fprintln(stdout, "No active batch or workflow")
+			i18n.Fprintln(stdout, "No active batch or workflow")
 			frameIdx++
 			return
 		}
 		var lines []string
 		lines = append(lines, watchStatusLines(repo, frameKind, frameRef, spinnerFrames[frameIdx%len(spinnerFrames)])...)
 		if tty && frameIdx > 0 {
-			fmt.Fprint(stdout, "\x1b[H\x1b[2J")
+			i18n.Fprint(stdout, "\x1b[H\x1b[2J")
 		}
 		for _, line := range lines {
-			fmt.Fprintln(stdout, line)
+			i18n.Fprintln(stdout, line)
 		}
 		frameIdx++
 	}
@@ -620,10 +623,10 @@ func resolveWatchTarget(repo string, args []string) (kind string, ref StatusRef,
 			}
 			return "run", StatusRef{Alias: "w1", ID: runID}, nil
 		}
-		return "", StatusRef{}, fmt.Errorf("No active batch or workflow")
+		return "", StatusRef{}, i18n.Errorf("No active batch or workflow")
 	}
 	if len(args) != 1 {
-		return "", StatusRef{}, fmt.Errorf("Usage: specrelay flow watch [-bN|-wN]")
+		return "", StatusRef{}, i18n.Errorf("Usage: specrelay flow watch [-bN|-wN]")
 	}
 	arg := args[0]
 	switch {
@@ -634,7 +637,7 @@ func resolveWatchTarget(repo string, args []string) (kind string, ref StatusRef,
 		ref, err := resolveIndexedRef(repo, arg, "-w", ListRunRefs)
 		return "run", ref, err
 	default:
-		return "", StatusRef{}, fmt.Errorf("Usage: specrelay flow watch [-bN|-wN]")
+		return "", StatusRef{}, i18n.Errorf("Usage: specrelay flow watch [-bN|-wN]")
 	}
 }
 
@@ -649,7 +652,7 @@ func parseConfigCommandOptions(args []string) (configCommandOptions, error) {
 		case "--global":
 			options.Global = true
 		default:
-			return configCommandOptions{}, fmt.Errorf("Usage: specrelay flow config [--global]")
+			return configCommandOptions{}, i18n.Errorf("Usage: specrelay flow config [--global]")
 		}
 	}
 	return options, nil

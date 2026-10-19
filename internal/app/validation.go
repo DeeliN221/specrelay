@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"os/exec"
@@ -445,7 +446,7 @@ func verifyQualityValidationCheckpoint(repo string, state State, stage string) (
 	checkpoint, ok := state.Validation[stage]
 	if !ok || checkpoint.Status != validationStatusPassed || checkpoint.Attempts < 1 ||
 		strings.TrimSpace(checkpoint.Kind) == "" || strings.TrimSpace(checkpoint.LastArtifact) == "" {
-		return ValidationAttempt{}, fmt.Errorf("stage %s is missing the last passing validation checkpoint", stage)
+		return ValidationAttempt{}, i18n.Errorf("stage %s is missing the last passing validation checkpoint", stage)
 	}
 	expectedPath, _, err := validationArtifactPath(
 		repo,
@@ -458,7 +459,7 @@ func verifyQualityValidationCheckpoint(repo string, state State, stage string) (
 		return ValidationAttempt{}, err
 	}
 	if filepath.Clean(checkpoint.LastArtifact) != filepath.Clean(expectedPath) {
-		return ValidationAttempt{}, fmt.Errorf(
+		return ValidationAttempt{}, i18n.Errorf(
 			"stage %s validation checkpoint path mismatch: state=%s expected=%s",
 			stage,
 			checkpoint.LastArtifact,
@@ -467,23 +468,23 @@ func verifyQualityValidationCheckpoint(repo string, state State, stage string) (
 	}
 	data, err := readQualityValidationArtifact(expectedPath)
 	if err != nil {
-		return ValidationAttempt{}, fmt.Errorf("read validation checkpoint failed: %w", err)
+		return ValidationAttempt{}, i18n.Errorf("read validation checkpoint failed: %w", err)
 	}
 	var attempt ValidationAttempt
 	if err := decodeStrictArtifactJSON(data, &attempt); err != nil {
-		return ValidationAttempt{}, fmt.Errorf("parse validation checkpoint failed: %w", err)
+		return ValidationAttempt{}, i18n.Errorf("parse validation checkpoint failed: %w", err)
 	}
 	switch {
 	case attempt.Stage != stage || attempt.Kind != checkpoint.Kind || attempt.Attempt != checkpoint.Attempts:
-		return ValidationAttempt{}, fmt.Errorf("stage %s validation stage/kind/attempt binding mismatch", stage)
+		return ValidationAttempt{}, i18n.Errorf("stage %s validation stage/kind/attempt binding mismatch", stage)
 	case attempt.Status != validationStatusPassed:
-		return ValidationAttempt{}, fmt.Errorf("stage %s validation checkpoint is not a passing result", stage)
+		return ValidationAttempt{}, i18n.Errorf("stage %s validation checkpoint is not a passing result", stage)
 	case checkpoint.DiffHash == "" || attempt.DiffHash != checkpoint.DiffHash ||
 		attempt.DiffHash != state.QualityLoop.DiffHash:
-		return ValidationAttempt{}, fmt.Errorf("stage %s validation diff binding mismatch", stage)
+		return ValidationAttempt{}, i18n.Errorf("stage %s validation diff binding mismatch", stage)
 	case state.QualityLoop.ValidationHash == "" ||
 		qualityValidationProgressHash(attempt) != state.QualityLoop.ValidationHash:
-		return ValidationAttempt{}, fmt.Errorf("stage %s validation progress hash mismatch", stage)
+		return ValidationAttempt{}, i18n.Errorf("stage %s validation progress hash mismatch", stage)
 	default:
 		return attempt, nil
 	}
@@ -496,7 +497,7 @@ func readQualityValidationArtifact(path string) ([]byte, error) {
 		return nil, err
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("validation checkpoint must be a regular file: %s", path)
+		return nil, i18n.Errorf("validation checkpoint must be a regular file: %s", path)
 	}
 	file, err := os.Open(path)
 	if err != nil {
@@ -508,10 +509,10 @@ func readQualityValidationArtifact(path string) ([]byte, error) {
 		return nil, err
 	}
 	if !opened.Mode().IsRegular() {
-		return nil, fmt.Errorf("validation checkpoint is not a regular file after opening: %s", path)
+		return nil, i18n.Errorf("validation checkpoint is not a regular file after opening: %s", path)
 	}
 	if !os.SameFile(info, opened) {
-		return nil, fmt.Errorf("validation checkpoint was replaced during inspection: %s", path)
+		return nil, i18n.Errorf("validation checkpoint was replaced during inspection: %s", path)
 	}
 	return io.ReadAll(file)
 }

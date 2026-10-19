@@ -2,7 +2,7 @@
 package app
 
 import (
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"strings"
 )
@@ -18,7 +18,7 @@ type reviewValidationResult struct {
 
 func runValidateReviewArtifact(args []string, stdout io.Writer) error {
 	if !hasFlag(args, "--artifact") {
-		return fmt.Errorf("Usage: specrelay flow validate-review --artifact <artifact-path> [--json]")
+		return i18n.Errorf("Usage: specrelay flow validate-review --artifact <artifact-path> [--json]")
 	}
 	path, err := requireFlagValue(args, "--artifact")
 	if err != nil {
@@ -26,7 +26,7 @@ func runValidateReviewArtifact(args []string, stdout io.Writer) error {
 	}
 	path = strings.TrimSpace(path)
 	if path == "" {
-		return fmt.Errorf("review artifact path must not be empty")
+		return i18n.Errorf("review artifact path must not be empty")
 	}
 
 	review, err := ReadReview(path)
@@ -54,10 +54,10 @@ func runValidateReviewArtifact(args []string, stdout io.Writer) error {
 
 	if err != nil {
 		if ar, ok := err.(ReviewArtifactError); ok {
-			return fmt.Errorf("%s: %s", ar.Code, ar.Reason)
+			return i18n.Errorf("%s: %s", ar.Code, ar.Reason)
 		}
 		return err
 	}
-	fmt.Fprintf(stdout, "review artifact is valid: %s (decision=%s, findings=%d)\n", path, review.Decision, len(review.Findings))
+	i18n.Fprintf(stdout, "review artifact is valid: %s (decision=%s, findings=%d)\n", path, review.Decision, len(review.Findings))
 	return nil
 }

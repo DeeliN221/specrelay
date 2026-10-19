@@ -2,7 +2,7 @@
 package app
 
 import (
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"strconv"
 	"strings"
 )
@@ -49,12 +49,12 @@ func parseWorkflowStage(stage string) (workflowStage, error) {
 			raw := strings.TrimPrefix(stage, spec.prefix)
 			n, err := strconv.Atoi(raw)
 			if err != nil || n < 1 {
-				return workflowStage{}, fmt.Errorf("invalid iteration stage %q", stage)
+				return workflowStage{}, i18n.Errorf("invalid iteration stage %q", stage)
 			}
 			return workflowStage{Raw: stage, Kind: spec.kind, Iteration: n, Iterable: true}, nil
 		}
 	}
-	return workflowStage{}, fmt.Errorf("unknown stage %q", stage)
+	return workflowStage{}, i18n.Errorf("unknown stage %q", stage)
 }
 
 // humanWorkflowStageName maps current durable stages to their two-character display labels.

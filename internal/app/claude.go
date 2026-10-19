@@ -7,7 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"os/exec"
@@ -72,7 +72,7 @@ func (c ClaudeCLI) Run(ctx context.Context, repo, prompt, sessionID string, opti
 		return "", c.ResolveErr
 	}
 	if c.Path == "" {
-		return "", fmt.Errorf("cannot find the claude executable")
+		return "", i18n.Errorf("cannot find the claude executable")
 	}
 	args := claudeRunArgs(repo, prompt, sessionID, options)
 	cmd := commandContext(ctx, c.Path, args...)
@@ -96,7 +96,7 @@ func (c ClaudeCLI) Run(ctx context.Context, repo, prompt, sessionID string, opti
 		if stderrText == "" {
 			return observed, waitErr
 		}
-		return observed, fmt.Errorf("%w; stderr: %s", waitErr, stderrText)
+		return observed, i18n.Errorf("%w; stderr: %s", waitErr, stderrText)
 	}
 	return observed, nil
 }
@@ -173,7 +173,7 @@ func (c ClaudeCLI) waitClaudeJSONLCommand(ctx context.Context, cmd *exec.Cmd, st
 			if cmd.Process != nil {
 				_ = cmd.Process.Kill()
 			}
-			return getObserved(), fmt.Errorf("%w: claude %s has produced no new output; terminated this process to prepare for continuation", errGoDAGRetryableNode, agentOutputIdleTimeout), nil
+			return getObserved(), i18n.Errorf("%w: claude %s has produced no new output; terminated this process to prepare for continuation", errGoDAGRetryableNode, agentOutputIdleTimeout), nil
 		}
 	}
 	return getObserved(), drainErr, waitErr

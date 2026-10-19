@@ -3,7 +3,7 @@ package app
 
 import (
 	"context"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"sync"
@@ -142,7 +142,7 @@ func (e *Engine) createRun(changeName string) (State, error) {
 // run advances stages until the workflow is done or aborted.
 func (e *Engine) run(ctx context.Context, state State) error {
 	if !hasWorkflowConfig(state) {
-		return fmt.Errorf("run %s is missing the workflow_config snapshot", state.RunID)
+		return i18n.Errorf("run %s is missing the workflow_config snapshot", state.RunID)
 	}
 	if !stateUsesGoDAG(state) {
 		unlock, err := acquireLock(e.Repo, state.RunID)

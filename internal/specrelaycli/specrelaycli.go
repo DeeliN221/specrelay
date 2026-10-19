@@ -3,7 +3,6 @@ package specrelaycli
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/DeeliN221/specrelay/internal/acceptance"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 )
 
 var (
@@ -50,12 +50,12 @@ func stateRoot() (string, error) {
 func validateChangeName(name string) error {
 	// validateChangeName accepts descriptive Unicode names as well as English slugs.
 	if name == "" {
-		return errors.New("change-name must not be empty")
+		return i18n.New("change-name must not be empty")
 	}
 	for i, r := range name {
 		valid := unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-'
 		if !valid || (i == 0 && r == '-') {
-			return errors.New("change-name may contain letters, digits, and hyphens only")
+			return i18n.New("change-name may contain letters, digits, and hyphens only")
 		}
 	}
 	return nil
@@ -66,7 +66,7 @@ func validateNumberedChange(change string) error {
 	re := regexp.MustCompile(`^[1-9][0-9]*-(.+)$`)
 	matches := re.FindStringSubmatch(change)
 	if matches == nil {
-		return errors.New("change directory must match <number>-<change-name>")
+		return i18n.New("change directory must match <number>-<change-name>")
 	}
 	return validateChangeName(matches[1])
 }
@@ -74,14 +74,8 @@ func validateNumberedChange(change string) error {
 func displayStatus(status string) string {
 	// displayStatus localizes human-readable status values while JSON keeps stable machine strings.
 	switch status {
-	case "present":
-		return "present"
-	case "missing":
-		return "missing"
-	case "ready":
-		return "ready"
-	case "incomplete":
-		return "incomplete"
+	case "present", "missing", "ready", "incomplete":
+		return i18n.T(status)
 	default:
 		return status
 	}

@@ -21,7 +21,7 @@
 ### 场景：顶层帮助区分日常命令和自动化接口
 
 - **当** 用户运行 `specrelay --help`
-- **则** 帮助内容包含 `list | l [--json]` 和 `install | i [--global | -g]`
+- **则** 帮助内容包含 `list | l [--json]`、`install | i [--global | -g]` 和 `language [en|zh-CN] [--global] [--json]`
 - **并且** 帮助内容以独立小节展示 `create`、`status <change> [--json]`、`validate <change> [--json]`、`archive <change> --yes`
 - **并且** 帮助内容不包含 `init`、`plan`、`exec`
 
@@ -37,6 +37,23 @@
 - **当** 下游工具运行 `specrelay create`
 - **则** 命令输出 `54`
 - **并且** 命令不得创建提案目录或提案文件
+
+### 场景：中英文语言切换
+
+- **给定** 未配置语言
+- **当** 用户运行 `specrelay language`
+- **则** 输出 `en`
+- **当** 用户运行 `specrelay language zh-CN`
+- **则** 项目 `specrelay-flow.yaml` 写入 `language: zh-CN`，文件不存在时创建
+- **并且** 已安装的 `SKILL.md` 刷新为中文
+- **并且** `specrelay flow config` 生成的默认提示词为中文
+- **并且** CLI 帮助、状态和错误输出为中文
+- **并且** JSON 键名和机器状态值保持英文标识
+- **当** 用户运行 `specrelay language en`
+- **则** 已安装技能、未改动的默认提示词和 CLI 输出恢复英文
+- **并且** 用户自定义的提示词保持不变
+- **当** 用户运行 `specrelay language zh-CN --global`
+- **则** 偏好写入 `~/specrelay-flow.yaml`，并作为没有项目配置时的有效语言
 
 ### 场景：下游校验接口继续可用
 

@@ -3,8 +3,7 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"os/exec"
@@ -130,7 +129,7 @@ func sourceGitTag() (string, error) {
 	}
 	top, err := exec.Command("git", "-C", root, "rev-parse", "--show-toplevel").Output()
 	if err != nil || filepath.Clean(strings.TrimSpace(string(top))) != filepath.Clean(root) {
-		return "", errors.New("module source is not its own Git checkout")
+		return "", i18n.New("module source is not its own Git checkout")
 	}
 
 	describeCmd := exec.Command("git", "-C", root, "describe", "--tags", "--always", "--dirty")
@@ -164,7 +163,7 @@ func specrelayModuleRoot(start string) (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("specrelay module root not found")
+			return "", i18n.New("specrelay module root not found")
 		}
 	}
 }
@@ -244,12 +243,12 @@ func requireFlagValue(args []string, flag string) (string, error) {
 	for i := 0; i < len(args); i++ {
 		if args[i] == flag {
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return "", fmt.Errorf("missing value for %s", flag)
+				return "", i18n.Errorf("missing value for %s", flag)
 			}
 			return args[i+1], nil
 		}
 	}
-	return "", fmt.Errorf("missing required argument %s", flag)
+	return "", i18n.Errorf("missing required argument %s", flag)
 }
 
 // optionalFlagValue extracts a flag value when the flag is present.
@@ -257,7 +256,7 @@ func optionalFlagValue(args []string, flag string) (string, error) {
 	for i := 0; i < len(args); i++ {
 		if args[i] == flag {
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return "", fmt.Errorf("missing value for %s", flag)
+				return "", i18n.Errorf("missing value for %s", flag)
 			}
 			return args[i+1], nil
 		}

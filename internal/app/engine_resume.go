@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"path/filepath"
@@ -40,11 +41,11 @@ func (e *Engine) ResumeDetachedAfterUserChoice(ctx context.Context, runID string
 	}
 	if state.Status == statusBlocked || state.Stage == statusBlocked {
 		e.printProgress(state, "blocked")
-		return fmt.Errorf("run %s reached blocked_review_limit; cannot continue automatically", runID)
+		return i18n.Errorf("run %s reached blocked_review_limit; cannot continue automatically", runID)
 	}
 	if state.Status == statusValidationBlocked || state.Stage == statusValidationBlocked {
 		e.printProgress(state, "blocked")
-		return fmt.Errorf("run %s reached blocked_validation_limit; cannot continue automatically", runID)
+		return i18n.Errorf("run %s reached blocked_validation_limit; cannot continue automatically", runID)
 	}
 	status, err := clearInactiveRunLock(e.Repo, runID, runtime.GOOS, true)
 	if err != nil {
@@ -118,7 +119,7 @@ func restoreStateAfterDetachedPreparationFailure(
 ) error {
 	expectedHash, err := detachedRunStateHash(repo, rollback.State.RunID)
 	if err != nil {
-		return errors.Join(prepareErr, fmt.Errorf("read %s preparation rollback generation failed: %w", operation, err))
+		return errors.Join(prepareErr, i18n.Errorf("read %s preparation rollback generation failed: %w", operation, err))
 	}
 	return restoreStateAfterDetachedFailure(repo, rollback, expectedHash, operation, prepareErr)
 }
@@ -136,15 +137,15 @@ func restoreStateAfterDetachedFailure(
 	}
 	unlock, err := acquireLock(repo, rollback.State.RunID)
 	if err != nil {
-		return errors.Join(operationErr, fmt.Errorf("%s state has an active lease before background launch; refusing stale rollback: %w", operation, err))
+		return errors.Join(operationErr, i18n.Errorf("%s state has an active lease before background launch; refusing stale rollback: %w", operation, err))
 	}
 	defer unlock()
 	restored, err := restoreDetachedRunIfCurrent(repo, rollback, expectedHash)
 	if err != nil {
-		return errors.Join(operationErr, fmt.Errorf("restore %s transaction before background launch failed: %w", operation, err))
+		return errors.Join(operationErr, i18n.Errorf("restore %s transaction before background launch failed: %w", operation, err))
 	}
 	if !restored {
-		return errors.Join(operationErr, fmt.Errorf("%s state generation changed before background launch; refusing stale rollback", operation))
+		return errors.Join(operationErr, i18n.Errorf("%s state generation changed before background launch; refusing stale rollback", operation))
 	}
 	return operationErr
 }
@@ -211,7 +212,7 @@ func restoreDetachedProposalLocation(repo string, rollback detachedRunRollback) 
 	case archivedErr != nil && !os.IsNotExist(archivedErr):
 		return archivedErr
 	default:
-		return fmt.Errorf("proposal location is not unique: active=%v archived=%v", activeErr, archivedErr)
+		return i18n.Errorf("proposal location is not unique: active=%v archived=%v", activeErr, archivedErr)
 	}
 }
 
@@ -227,7 +228,7 @@ func (e *Engine) resume(ctx context.Context, allowUnknownLock bool) error {
 		return err
 	}
 	if runID == "" {
-		return fmt.Errorf("no unfinished run")
+		return i18n.Errorf("no unfinished run")
 	}
 	return e.resumeRun(ctx, runID, allowUnknownLock, nil)
 }
@@ -251,11 +252,11 @@ func (e *Engine) resumeRunWithRollback(
 	}
 	if state.Status == statusBlocked || state.Stage == statusBlocked {
 		e.printProgress(state, "blocked")
-		return fmt.Errorf("run %s reached blocked_review_limit; cannot continue automatically", runID)
+		return i18n.Errorf("run %s reached blocked_review_limit; cannot continue automatically", runID)
 	}
 	if state.Status == statusValidationBlocked || state.Stage == statusValidationBlocked {
 		e.printProgress(state, "blocked")
-		return fmt.Errorf("run %s reached blocked_validation_limit; cannot continue automatically", runID)
+		return i18n.Errorf("run %s reached blocked_validation_limit; cannot continue automatically", runID)
 	}
 	status, err := clearInactiveRunLock(e.Repo, runID, runtime.GOOS, allowUnknownLock)
 	if err != nil {
@@ -266,7 +267,7 @@ func (e *Engine) resumeRunWithRollback(
 	}
 	if status == lockStatusUnknown {
 		if !allowUnknownLock {
-			return fmt.Errorf("run %s has an uncertain lock; resume or stop it through the interactive menu", runID)
+			return i18n.Errorf("run %s has an uncertain lock; resume or stop it through the interactive menu", runID)
 		}
 	}
 	unlock, err := acquireLock(e.Repo, runID)
@@ -335,11 +336,11 @@ func isRunnerStartupWriteError(err error) bool {
 func cloneResumeRollbackState(state State) (State, error) {
 	data, err := json.Marshal(state)
 	if err != nil {
-		return State{}, fmt.Errorf("copy resume rollback state failed: %w", err)
+		return State{}, i18n.Errorf("copy resume rollback state failed: %w", err)
 	}
 	var cloned State
 	if err := json.Unmarshal(data, &cloned); err != nil {
-		return State{}, fmt.Errorf("copy resume rollback state failed: %w", err)
+		return State{}, i18n.Errorf("copy resume rollback state failed: %w", err)
 	}
 	return cloned, nil
 }
@@ -348,7 +349,7 @@ func cloneResumeRollbackState(state State) (State, error) {
 func restoreResumeStateAfterStartupWriteFailure(repo string, rollback State, writeErr error) error {
 	startupErr := &runnerStartupWriteError{Cause: writeErr}
 	if err := saveState(repo, rollback); err != nil {
-		return errors.Join(startupErr, fmt.Errorf("restore pre-launch runner state failed: %w", err))
+		return errors.Join(startupErr, i18n.Errorf("restore pre-launch runner state failed: %w", err))
 	}
 	return startupErr
 }
@@ -356,10 +357,10 @@ func restoreResumeStateAfterStartupWriteFailure(repo string, rollback State, wri
 // validateResumePrerequisites checks the sealed workflow and backend before a recoverable block is durably cleared.
 func (e *Engine) validateResumePrerequisites(state *State) error {
 	if state == nil {
-		return fmt.Errorf("resume is missing run state")
+		return i18n.Errorf("resume is missing run state")
 	}
 	if !hasWorkflowConfig(*state) {
-		return fmt.Errorf("run %s is missing the workflow_config snapshot", state.RunID)
+		return i18n.Errorf("run %s is missing the workflow_config snapshot", state.RunID)
 	}
 	normalizeWorkflowConfig(&state.Workflow)
 	state.Engine = publicEngineLabel(state.Workflow.Engine)
@@ -373,7 +374,7 @@ func (e *Engine) prepareQualityLoopResume(state *State, manualInstruction bool) 
 	}
 	original := state.QualityLoop.BlockedFromStage
 	if original == "" {
-		return fmt.Errorf("run %s status %s has no original stage; cannot resume", state.RunID, state.Status)
+		return i18n.Errorf("run %s status %s has no original stage; cannot resume", state.RunID, state.Status)
 	}
 	blockedFrom := original
 	archiveRepairGate, hasArchiveRepairGate := state.ArtifactGates[workflowStageArchive]
@@ -398,7 +399,7 @@ func (e *Engine) prepareQualityLoopResume(state *State, manualInstruction bool) 
 			}
 		}
 		if len(missing) > 0 {
-			return fmt.Errorf("run %s still lacks environment prerequisites: %s", state.RunID, strings.Join(missing, ", "))
+			return i18n.Errorf("run %s still lacks environment prerequisites: %s", state.RunID, strings.Join(missing, ", "))
 		}
 		if err := e.absorbQualityEnvironmentProgress(state, names); err != nil {
 			return err
@@ -432,7 +433,7 @@ func (e *Engine) prepareQualityLoopResume(state *State, manualInstruction bool) 
 		evidenceChanged := evidenceObservation.ProgressEligible && blockedEvidenceProgressHash != "" &&
 			probe.QualityLoop.EvidenceProgressHash != blockedEvidenceProgressHash
 		if !progressChanged && !evidenceChanged && !manualInstruction {
-			return fmt.Errorf("run %s still has no new code, evidence, configuration, or user input; remains blocked_stalled", state.RunID)
+			return i18n.Errorf("run %s still has no new code, evidence, configuration, or user input; remains blocked_stalled", state.RunID)
 		}
 		state.BaselineHead = head
 		state.BaselineDiff = diff
@@ -488,7 +489,7 @@ func (e *Engine) resumeQualityLoopArchiveGate(state *State) (bool, error) {
 // restoreQualityLoopProposalForAudit moves one verified archived proposal back to its active path.
 func (e *Engine) restoreQualityLoopProposalForAudit(state *State) error {
 	if state == nil {
-		return fmt.Errorf("archive recovery is missing run state")
+		return i18n.Errorf("archive recovery is missing run state")
 	}
 	active := filepath.Join(e.Repo, "docs", "changes", state.ChangeName)
 	info, err := os.Stat(active)
@@ -496,7 +497,7 @@ func (e *Engine) restoreQualityLoopProposalForAudit(state *State) error {
 	archivedDir := ""
 	switch {
 	case err == nil && !info.IsDir():
-		return fmt.Errorf("archive recovery target is not a directory: %s", active)
+		return i18n.Errorf("archive recovery target is not a directory: %s", active)
 	case err == nil:
 	case !os.IsNotExist(err):
 		return err
@@ -506,14 +507,14 @@ func (e *Engine) restoreQualityLoopProposalForAudit(state *State) error {
 			return globErr
 		}
 		if len(matches) != 1 {
-			return fmt.Errorf("archive recovery requires a unique archived proposal; found %d: %s", len(matches), state.ChangeName)
+			return i18n.Errorf("archive recovery requires a unique archived proposal; found %d: %s", len(matches), state.ChangeName)
 		}
 		archivedDir = matches[0]
 		if err := verifyArchivedAcceptanceMatchesSealed(e.Repo, archivedDir, state.ChangeName, state.AcceptanceHash); err != nil {
-			return fmt.Errorf("archive recovery refuses an unsealed proposal: %w", err)
+			return i18n.Errorf("archive recovery refuses an unsealed proposal: %w", err)
 		}
 		if err := os.Rename(archivedDir, active); err != nil {
-			return fmt.Errorf("archive proposal recovery failed: %w", err)
+			return i18n.Errorf("archive proposal recovery failed: %w", err)
 		}
 		restored = true
 	}
@@ -706,7 +707,7 @@ func (e *Engine) absorbQualityEnvironmentProgress(state *State, names []string) 
 		return err
 	}
 	if state.QualityLoop.EnvironmentContent == "" && len(statusLineByPath(state.BaselineDiff)) > 0 {
-		return fmt.Errorf("run %s environment block lacks a dirty-content checkpoint; refusing recovery changes", state.RunID)
+		return i18n.Errorf("run %s environment block lacks a dirty-content checkpoint; refusing recovery changes", state.RunID)
 	}
 	paths = append(paths, gitContentSnapshotChangedPaths(state.QualityLoop.EnvironmentContent, currentContent)...)
 	if state.BaselineHead != "" && state.BaselineHead != head {
@@ -720,7 +721,7 @@ func (e *Engine) absorbQualityEnvironmentProgress(state *State, names []string) 
 				return err
 			}
 			if len(committed) == 0 {
-				return fmt.Errorf("run %s detected an unbound-path HEAD change during environment recovery", state.RunID)
+				return i18n.Errorf("run %s detected an unbound-path HEAD change during environment recovery", state.RunID)
 			}
 			paths = append(paths, committed...)
 		}
@@ -733,7 +734,7 @@ func (e *Engine) absorbQualityEnvironmentProgress(state *State, names []string) 
 		}
 	}
 	if len(blocked) > 0 {
-		return fmt.Errorf("run %s detected undeclared path changes during environment recovery: %s", state.RunID, strings.Join(blocked, ", "))
+		return i18n.Errorf("run %s detected undeclared path changes during environment recovery: %s", state.RunID, strings.Join(blocked, ", "))
 	}
 	content, err := gitChangeContentSnapshotForChange(e.Repo, state.ChangeName)
 	if err != nil {
@@ -762,7 +763,7 @@ func qualityExpandResumePaths(repo string, paths []string) ([]string, error) {
 		cmd.Dir = repo
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("expand recovery path %q failed: %s", path, strings.TrimSpace(string(output)))
+			return nil, i18n.Errorf("expand recovery path %q failed: %s", path, strings.TrimSpace(string(output)))
 		}
 		items := statusNamePaths(string(output))
 		if len(items) == 0 {
@@ -784,7 +785,7 @@ func qualityCanonicalCommit(repo, revision string) (string, error) {
 	cmd.Dir = repo
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("resolve recovery baseline HEAD %q failed: %s", revision, strings.TrimSpace(string(output)))
+		return "", i18n.Errorf("resolve recovery baseline HEAD %q failed: %s", revision, strings.TrimSpace(string(output)))
 	}
 	return strings.TrimSpace(string(output)), nil
 }

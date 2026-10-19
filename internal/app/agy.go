@@ -4,7 +4,7 @@ package app
 import (
 	"bytes"
 	"context"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os/exec"
 	"strings"
@@ -57,7 +57,7 @@ func (a AgyCLI) Run(ctx context.Context, repo, prompt, conversationID string, op
 		return "", a.ResolveErr
 	}
 	if a.Path == "" {
-		return "", fmt.Errorf("cannot find the agy executable")
+		return "", i18n.Errorf("cannot find the agy executable")
 	}
 	args := agyRunArgs(prompt, conversationID, options)
 	cmd := commandContext(ctx, a.Path, args...)
@@ -76,7 +76,7 @@ func (a AgyCLI) Run(ctx context.Context, repo, prompt, conversationID string, op
 		if stderrText == "" {
 			return conversationID, waitErr
 		}
-		return conversationID, fmt.Errorf("%w; stderr: %s", waitErr, stderrText)
+		return conversationID, i18n.Errorf("%w; stderr: %s", waitErr, stderrText)
 	}
 	return conversationID, nil
 }

@@ -2,11 +2,11 @@
 package app
 
 import (
-	"fmt"
 	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,6 +22,7 @@ type woConfig struct {
 }
 
 type workflowConfigInput struct {
+	Language            string                       `yaml:"language"`
 	Engine              string                       `yaml:"engine"`
 	MaxAuditIterations  *int                         `yaml:"max_audit_iterations"`
 	MaxRepairIterations *int                         `yaml:"max_repair_iterations"`
@@ -82,7 +83,7 @@ type subagentGuardModeInput struct {
 func (input *subagentGuardModeInput) UnmarshalYAML(value *yaml.Node) error {
 	input.Set = true
 	if value.Kind != yaml.ScalarNode {
-		return fmt.Errorf("subagent_guard must be advisory, strict, off, or true/false")
+		return i18n.Errorf("subagent_guard must be advisory, strict, off, or true/false")
 	}
 	mode := strings.ToLower(strings.TrimSpace(value.Value))
 	switch mode {
@@ -93,7 +94,7 @@ func (input *subagentGuardModeInput) UnmarshalYAML(value *yaml.Node) error {
 	case "false", "disabled", subagentGuardModeOff:
 		input.Mode = subagentGuardModeOff
 	default:
-		return fmt.Errorf("subagent_guard is invalid: %q", value.Value)
+		return i18n.Errorf("subagent_guard is invalid: %q", value.Value)
 	}
 	return nil
 }
@@ -216,16 +217,27 @@ func mappingHasKey(node *yaml.Node, key string) bool {
 // workflowConfigFromInput migrates user YAML into a dynamic quality-loop snapshot.
 func workflowConfigFromInput(input workflowConfigInput, baseConfig *WorkflowConfig) (WorkflowConfig, error) {
 	if input.Defaults.hasValues() {
-		return WorkflowConfig{}, fmt.Errorf("defaults is a removed legacy field")
+		return WorkflowConfig{}, i18n.Errorf("defaults is a removed legacy field")
 	}
 	if input.Iterations != nil {
-		return WorkflowConfig{}, fmt.Errorf("iterations is a removed legacy field")
+		return WorkflowConfig{}, i18n.Errorf("iterations is a removed legacy field")
 	}
 	if input.legacySubagentsSet {
-		return WorkflowConfig{}, fmt.Errorf("subagents is a removed legacy field")
+		return WorkflowConfig{}, i18n.Errorf("subagents is a removed legacy field")
 	}
 	if input.legacyParallelSet {
-		return WorkflowConfig{}, fmt.Errorf("parallel is a removed legacy field")
+		return WorkflowConfig{}, i18n.Errorf("parallel is a removed legacy field")
+	}
+	language := i18n.English
+	if baseConfig != nil && baseConfig.Language != "" {
+		language = baseConfig.Language
+	}
+	if strings.TrimSpace(input.Language) != "" {
+		parsed, err := i18n.Parse(input.Language)
+		if err != nil {
+			return WorkflowConfig{}, err
+		}
+		language = parsed
 	}
 	maxIterations := 0
 	maxAuditIterations := defaultMaxAuditIterations
@@ -240,7 +252,7 @@ func workflowConfigFromInput(input workflowConfigInput, baseConfig *WorkflowConf
 		if maxIterations == 0 && baseConfig.MaxReviewIterations > 0 {
 			maxIterations = baseConfig.MaxReviewIterations
 		}
-		basePrompts = clonePrompts(baseConfig.Prompts)
+		basePrompts = clonePrompts(baseConfig.Prompts, language)
 		validation = baseConfig.Validation
 		if option, ok := baseConfig.Stages["planning"]; ok {
 			byKind["planning"] = option
@@ -269,22 +281,22 @@ func workflowConfigFromInput(input workflowConfigInput, baseConfig *WorkflowConf
 		}
 	}
 	if input.MaxRepairIterations != nil && input.MaxReviewIterations != nil {
-		return WorkflowConfig{}, fmt.Errorf("max_repair_iterations cannot coexist with deprecated max_review_iterations")
+		return WorkflowConfig{}, i18n.Errorf("max_repair_iterations cannot coexist with deprecated max_review_iterations")
 	}
 	if input.MaxAuditIterations != nil {
 		if *input.MaxAuditIterations < 0 {
-			return WorkflowConfig{}, fmt.Errorf("max_audit_iterations must not be negative")
+			return WorkflowConfig{}, i18n.Errorf("max_audit_iterations must not be negative")
 		}
 		maxAuditIterations = *input.MaxAuditIterations
 	}
 	if input.MaxRepairIterations != nil {
 		if *input.MaxRepairIterations < 0 {
-			return WorkflowConfig{}, fmt.Errorf("max_repair_iterations must not be negative")
+			return WorkflowConfig{}, i18n.Errorf("max_repair_iterations must not be negative")
 		}
 		maxIterations = *input.MaxRepairIterations
 	} else if input.MaxReviewIterations != nil {
 		if *input.MaxReviewIterations < 0 {
-			return WorkflowConfig{}, fmt.Errorf("max_review_iterations must not be negative")
+			return WorkflowConfig{}, i18n.Errorf("max_review_iterations must not be negative")
 		}
 		maxIterations = *input.MaxReviewIterations
 	}
@@ -293,7 +305,7 @@ func workflowConfigFromInput(input workflowConfigInput, baseConfig *WorkflowConf
 		_, hasReview := input.Stages["review"]
 		_, hasFix := input.Stages["fix"]
 		if hasRepair && (hasReview || hasFix) {
-			return WorkflowConfig{}, fmt.Errorf("stages.repair cannot coexist with deprecated stages.review/fix")
+			return WorkflowConfig{}, i18n.Errorf("stages.repair cannot coexist with deprecated stages.review/fix")
 		}
 		if !hasRepair {
 			if legacy, ok := input.Stages["fix"]; ok {
@@ -304,34 +316,34 @@ func workflowConfigFromInput(input workflowConfigInput, baseConfig *WorkflowConf
 		}
 	}
 	if strings.TrimSpace(input.Engine) != "" {
-		return WorkflowConfig{}, fmt.Errorf("engine is a removed legacy field")
+		return WorkflowConfig{}, i18n.Errorf("engine is a removed legacy field")
 	}
 	if input.legacyGuardSet {
-		return WorkflowConfig{}, fmt.Errorf("subagent_guard is a removed legacy field")
+		return WorkflowConfig{}, i18n.Errorf("subagent_guard is a removed legacy field")
 	}
 	for _, kind := range stageKinds {
 		base := byKind[kind]
 		if err := mergeStageOptions(&base, input.Defaults); err != nil {
-			return WorkflowConfig{}, fmt.Errorf("defaults: %w", err)
+			return WorkflowConfig{}, i18n.Errorf("defaults: %w", err)
 		}
 		if input.Stages != nil {
 			for key := range input.Stages {
 				if !slices.Contains(stageKinds, key) {
-					return WorkflowConfig{}, fmt.Errorf("unknown stage type %q", key)
+					return WorkflowConfig{}, i18n.Errorf("unknown stage type %q", key)
 				}
 			}
 			if override, ok := input.Stages[kind]; ok {
 				if override.Before != nil {
-					return WorkflowConfig{}, fmt.Errorf("stages.%s.before is a removed legacy field", kind)
+					return WorkflowConfig{}, i18n.Errorf("stages.%s.before is a removed legacy field", kind)
 				}
 				if err := mergeStageOptions(&base, override); err != nil {
-					return WorkflowConfig{}, fmt.Errorf("stages.%s: %w", kind, err)
+					return WorkflowConfig{}, i18n.Errorf("stages.%s: %w", kind, err)
 				}
 			}
 		}
 		byKind[kind] = base
 	}
-	config := WorkflowConfig{Engine: engine, Generation: qualityLoopWorkflowGeneration, MaxAuditIterations: maxAuditIterations, MaxRepairIterations: maxIterations, Stages: map[string]StageOptions{
+	config := WorkflowConfig{Engine: engine, Generation: qualityLoopWorkflowGeneration, Language: language, MaxAuditIterations: maxAuditIterations, MaxRepairIterations: maxIterations, Stages: map[string]StageOptions{
 		"planning":          byKind["planning"],
 		"execution":         byKind["execution"],
 		"audit_1":           byKind["repair"],
@@ -352,14 +364,14 @@ func workflowConfigFromInput(input workflowConfigInput, baseConfig *WorkflowConf
 	config.Validation = validation
 	for key, override := range input.Iterations {
 		if !iterationStage.MatchString(key) {
-			return WorkflowConfig{}, fmt.Errorf("unknown iteration stage %q", key)
+			return WorkflowConfig{}, i18n.Errorf("unknown iteration stage %q", key)
 		}
 		base, ok := config.Stages[key]
 		if !ok {
-			return WorkflowConfig{}, fmt.Errorf("iteration stage %q exceeds max_repair_iterations", key)
+			return WorkflowConfig{}, i18n.Errorf("iteration stage %q exceeds max_repair_iterations", key)
 		}
 		if err := mergeStageOptions(&base, override); err != nil {
-			return WorkflowConfig{}, fmt.Errorf("iterations.%s: %w", key, err)
+			return WorkflowConfig{}, i18n.Errorf("iterations.%s: %w", key, err)
 		}
 		config.Stages[key] = base
 	}
@@ -368,20 +380,20 @@ func workflowConfigFromInput(input workflowConfigInput, baseConfig *WorkflowConf
 
 func mergeStageOptions(base *StageOptions, override stageOptionsInput) error {
 	if override.CLI != nil {
-		return fmt.Errorf("cli is a removed legacy field; use agent")
+		return i18n.Errorf("cli is a removed legacy field; use agent")
 	}
 	if override.Tool != nil {
-		return fmt.Errorf("tool is a removed legacy field; use agent")
+		return i18n.Errorf("tool is a removed legacy field; use agent")
 	}
 	if override.Permissions != nil {
-		return fmt.Errorf("permissions is a removed legacy field")
+		return i18n.Errorf("permissions is a removed legacy field")
 	}
 	if override.Agent != nil {
 		override.Tool = override.Agent
 	}
 	if override.Tool != nil {
 		if !validAgentTool(*override.Tool) {
-			return fmt.Errorf("unknown agent tool %q", *override.Tool)
+			return i18n.Errorf("unknown agent tool %q", *override.Tool)
 		}
 		base.Tool = *override.Tool
 	}
@@ -390,7 +402,7 @@ func mergeStageOptions(base *StageOptions, override stageOptionsInput) error {
 	}
 	if override.Reasoning != nil {
 		if !validReasoning[*override.Reasoning] {
-			return fmt.Errorf("invalid reasoning %q", *override.Reasoning)
+			return i18n.Errorf("invalid reasoning %q", *override.Reasoning)
 		}
 		base.Reasoning = *override.Reasoning
 	}
@@ -399,7 +411,7 @@ func mergeStageOptions(base *StageOptions, override stageOptionsInput) error {
 	}
 	if override.Permissions != nil {
 		if !validPermissions[*override.Permissions] {
-			return fmt.Errorf("invalid permissions %q", *override.Permissions)
+			return i18n.Errorf("invalid permissions %q", *override.Permissions)
 		}
 		base.Permissions = *override.Permissions
 	}

@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os/exec"
 	"slices"
@@ -60,7 +61,7 @@ func (r *AgentRegistry) Tool(name string) (AgentTool, error) {
 	}
 	tool, ok := r.tools[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown agent tool %q", name)
+		return nil, i18n.Errorf("unknown agent tool %q", name)
 	}
 	return tool, nil
 }
@@ -74,7 +75,7 @@ func (r *AgentRegistry) ResolveForWorkflow(config WorkflowConfig) error {
 			return err
 		}
 		if err := tool.Resolve(); err != nil {
-			return fmt.Errorf("%w; install the %s CLI and retry", err, name)
+			return i18n.Errorf("%w; install the %s CLI and retry", err, name)
 		}
 	}
 	return nil

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"path/filepath"
@@ -155,21 +156,21 @@ func ValidateReview(review Review) error {
 // ValidateReviewForIteration enforces review checks that depend on review round.
 func ValidateReviewForIteration(review Review, iteration int) error {
 	if review.Summary == "" {
-		return fmt.Errorf("review summary must not be empty")
+		return i18n.Errorf("review summary must not be empty")
 	}
 	if review.Decision != "clean" && review.Decision != "needs_fix" {
-		return fmt.Errorf("invalid review decision %q", review.Decision)
+		return i18n.Errorf("invalid review decision %q", review.Decision)
 	}
 	if ReviewDeclaresWorkflowFailure(review) {
 		if review.Decision != "needs_fix" {
-			return fmt.Errorf("workflow_failure requires decision=needs_fix")
+			return i18n.Errorf("workflow_failure requires decision=needs_fix")
 		}
 		if strings.TrimSpace(review.WorkflowFailure.Reason) == "" {
-			return fmt.Errorf("workflow_failure.reason must not be empty")
+			return i18n.Errorf("workflow_failure.reason must not be empty")
 		}
 	}
 	if review.Decision == "clean" && len(review.Findings) != 0 {
-		return fmt.Errorf("clean review must not contain findings")
+		return i18n.Errorf("clean review must not contain findings")
 	}
 	if review.Decision == "clean" {
 		if err := validateCleanReview(review, iteration); err != nil {
@@ -177,7 +178,7 @@ func ValidateReviewForIteration(review Review, iteration int) error {
 		}
 	}
 	if review.Decision == "needs_fix" && len(review.Findings) == 0 {
-		return fmt.Errorf("needs_fix review must include findings")
+		return i18n.Errorf("needs_fix review must include findings")
 	}
 	for i, finding := range review.Findings {
 		if err := validateFinding(finding, fmt.Sprintf("finding %d", i), false); err != nil {
@@ -232,17 +233,17 @@ func normalizeFindingScope(scope string) (string, bool) {
 // validateFinding validates one finding entry and its optional scope policy.
 func validateFinding(finding Finding, field string, allowNonBlocking bool) error {
 	if finding.Title == "" || finding.Evidence == "" || finding.Recommendation == "" {
-		return fmt.Errorf("%s is incomplete", field)
+		return i18n.Errorf("%s is incomplete", field)
 	}
 	if _, ok := normalizeFindingSeverity(finding.Severity); !ok {
-		return fmt.Errorf("%s:  severity is invalid: %q", field, finding.Severity)
+		return i18n.Errorf("%s:  severity is invalid: %q", field, finding.Severity)
 	}
 	scope, ok := normalizeFindingScope(finding.Scope)
 	if !ok {
-		return fmt.Errorf("%s:  scope is invalid: %q", field, finding.Scope)
+		return i18n.Errorf("%s:  scope is invalid: %q", field, finding.Scope)
 	}
 	if allowNonBlocking && scope != findingScopeOutOfScope {
-		return fmt.Errorf("%s:  scope only accepts historical values: %q", field, finding.Scope)
+		return i18n.Errorf("%s:  scope only accepts historical values: %q", field, finding.Scope)
 	}
 	return nil
 }
@@ -327,7 +328,7 @@ func decodeStrictArtifactJSON(data []byte, target interface{}) error {
 		return err
 	}
 	if err := dec.Decode(&struct{}{}); err != io.EOF {
-		return fmt.Errorf("artifact contains trailing content; output must be a single JSON object")
+		return i18n.Errorf("artifact contains trailing content; output must be a single JSON object")
 	}
 	return nil
 }
@@ -338,17 +339,17 @@ func validateCleanReview(review Review, iteration int) error {
 		!review.Checks.ImplementationScoped ||
 		!review.Checks.RuntimeBehaviorVerified ||
 		!review.Checks.PreviousFindingsResolved {
-		return fmt.Errorf("clean review requires all checks to be true")
+		return i18n.Errorf("clean review requires all checks to be true")
 	}
 	for _, evidence := range review.Evidence {
 		if strings.TrimSpace(evidence) != "" {
 			if hasValidationEvidence(review.Evidence) && hasRuntimeEvidence(review.Evidence) {
 				return nil
 			}
-			return fmt.Errorf("clean review evidence must reference validation commands and screenshot, trace, QA, or runtime evidence")
+			return i18n.Errorf("clean review evidence must reference validation commands and screenshot, trace, QA, or runtime evidence")
 		}
 	}
-	return fmt.Errorf("clean review must include evidence")
+	return i18n.Errorf("clean review must include evidence")
 }
 
 func hasValidationEvidence(evidence []string) bool {

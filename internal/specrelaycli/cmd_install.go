@@ -2,11 +2,11 @@
 package specrelaycli
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/DeeliN221/specrelay/internal/app"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"github.com/DeeliN221/specrelay/skills"
 )
 
@@ -18,7 +18,7 @@ func (c *cli) installCmd(args []string) error {
 	}
 	global := hasArg(args, "--global") || hasArg(args, "-g")
 	if len(args) > 1 || (len(args) == 1 && !global) {
-		return errors.New("Usage:specrelay install [--global | -g]")
+		return i18n.New("Usage:specrelay install [--global | -g]")
 	}
 	targetRoot := filepath.Join(".agents", "skills")
 	if global {
@@ -28,7 +28,8 @@ func (c *cli) installCmd(args []string) error {
 		}
 		targetRoot = filepath.Join(home, ".agents", "skills")
 	}
-	builtIn, err := skills.BuiltIn()
+	language := app.EffectiveLanguageForCWD()
+	builtIn, err := skills.BuiltIn(language)
 	if err != nil {
 		return err
 	}
@@ -41,13 +42,13 @@ func (c *cli) installCmd(args []string) error {
 			return err
 		}
 	}
-	fmt.Fprintf(c.out, "Installed %d skills into %s\n", len(builtIn), targetRoot)
+	i18n.Fprintf(c.out, "Installed %d skills into %s\n", len(builtIn), targetRoot)
 	return nil
 }
 
 func (c *cli) printInstallHelp() {
 	// printInstallHelp documents local and global skill installation forms.
-	fmt.Fprintln(c.out, "Usage:")
-	fmt.Fprintln(c.out, "  specrelay install [--global | -g]")
-	fmt.Fprintln(c.out, "  specrelay i [--global | -g]")
+	i18n.Fprintln(c.out, "Usage:")
+	i18n.Fprintln(c.out, "  specrelay install [--global | -g]")
+	i18n.Fprintln(c.out, "  specrelay i [--global | -g]")
 }

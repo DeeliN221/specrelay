@@ -4,6 +4,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"sort"
 	"strings"
@@ -44,24 +45,24 @@ func ReadRepair(path string) (Review, error) {
 // ValidateRepair enforces the repair checkpoint decision and evidence contract.
 func ValidateRepair(repair Review) error {
 	if strings.TrimSpace(repair.Summary) == "" {
-		return fmt.Errorf("repair summary must not be empty")
+		return i18n.Errorf("repair summary must not be empty")
 	}
 	if repair.Decision != "clean" && repair.Decision != "needs_more" {
-		return fmt.Errorf("invalid repair decision %q", repair.Decision)
+		return i18n.Errorf("invalid repair decision %q", repair.Decision)
 	}
 	if repair.Decision == "clean" && len(repair.Findings) != 0 {
-		return fmt.Errorf("clean repair must not contain findings")
+		return i18n.Errorf("clean repair must not contain findings")
 	}
 	if repair.Decision == "clean" {
 		if err := validateCleanReview(repair, 1); err != nil {
-			return fmt.Errorf("clean repair validation failed: %w", err)
+			return i18n.Errorf("clean repair validation failed: %w", err)
 		}
 	}
 	if repair.Decision == "needs_more" && len(repair.Findings) == 0 {
-		return fmt.Errorf("needs_more repair must include findings")
+		return i18n.Errorf("needs_more repair must include findings")
 	}
 	if !hasNonBlankEvidence(repair.Evidence) {
-		return fmt.Errorf("repair must include verification evidence")
+		return i18n.Errorf("repair must include verification evidence")
 	}
 	for i, finding := range repair.Findings {
 		if err := validateFinding(finding, fmt.Sprintf("finding %d", i), false); err != nil {

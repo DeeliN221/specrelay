@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- No unreleased changes.
+- Add bilingual English/Simplified Chinese skills, flow prompts, and CLI output with `specrelay language [en|zh-CN]`; English remains the default.
 
 ## [v1.0.1] - 2026-10-13
 

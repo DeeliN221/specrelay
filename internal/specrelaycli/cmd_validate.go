@@ -2,7 +2,6 @@
 package specrelaycli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,18 +10,19 @@ import (
 	"strings"
 
 	"github.com/DeeliN221/specrelay/internal/acceptance"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 )
 
 func (c *cli) validateCmd(args []string) error {
 	// validateCmd validates a fixed-format specrelay change and optionally emits stable JSON.
 	if hasHelp(args) {
-		fmt.Fprintln(c.out, "Usage:specrelay validate <change> [--json]")
+		i18n.Fprintln(c.out, "Usage:specrelay validate <change> [--json]")
 		return nil
 	}
 	jsonOut := hasArg(args, "--json")
 	change := firstPositional(args)
 	if change == "" {
-		return errors.New("Usage:specrelay validate <change> [--json]")
+		return i18n.New("Usage:specrelay validate <change> [--json]")
 	}
 	root, err := stateRoot()
 	if err != nil {
@@ -32,14 +32,14 @@ func (c *cli) validateCmd(args []string) error {
 	if jsonOut {
 		_ = writeJSON(c.out, result)
 	} else if result.Valid {
-		fmt.Fprintf(c.out, "%s passed validation\n", change)
+		i18n.Fprintf(c.out, "%s passed validation\n", change)
 	} else {
 		for _, e := range result.Errors {
 			fmt.Fprintln(c.err, e)
 		}
 	}
 	if !result.Valid {
-		return errors.New("validation failed")
+		return i18n.New("validation failed")
 	}
 	return nil
 }
@@ -63,27 +63,27 @@ func validateChange(root, change string) validationResult {
 	}
 	taskPath := filepath.Join(changeDir, "task.md")
 	if regularFileExists(taskPath) {
-		result.Errors = append(result.Errors, "active proposals must not contain task.md; keep dynamic plans in the executor Todo list or runtime state")
+		result.Errors = append(result.Errors, i18n.T("active proposals must not contain task.md; keep dynamic plans in the executor Todo list or runtime state"))
 	}
 	for _, name := range []string{"brief.md", "acceptance.json"} {
 		if !regularFileExists(filepath.Join(changeDir, name)) {
-			result.Errors = append(result.Errors, "missing "+name)
+			result.Errors = append(result.Errors, i18n.Sprintf("missing %s", name))
 		}
 	}
 	longDocs := []string{"proposal.md", "design.md", "spec.md"}
 	if changeUsesStandardDocs(changeDir, longDocs) {
 		for _, name := range longDocs {
 			if !regularFileExists(filepath.Join(changeDir, name)) {
-				result.Errors = append(result.Errors, "missing "+name)
+				result.Errors = append(result.Errors, i18n.Sprintf("missing %s", name))
 			}
 		}
 	}
 	testsDir := filepath.Join(changeDir, "tests")
 	result.Artifacts["tests"] = testsDir
 	if info, err := os.Stat(testsDir); err != nil || !info.IsDir() {
-		result.Errors = append(result.Errors, "missing tests")
+		result.Errors = append(result.Errors, i18n.T("missing tests"))
 	} else if entries, err := os.ReadDir(testsDir); err != nil {
-		result.Errors = append(result.Errors, "cannot read tests: "+err.Error())
+		result.Errors = append(result.Errors, i18n.Sprintf("cannot read tests: %s", err))
 	} else {
 		visibleEntries := 0
 		for _, entry := range entries {
@@ -93,11 +93,11 @@ func validateChange(root, change string) validationResult {
 			}
 			visibleEntries++
 			if entry.IsDir() || !looksLikeTestCode(entry.Name()) {
-				result.Errors = append(result.Errors, "tests contains non-test code: "+entry.Name())
+				result.Errors = append(result.Errors, i18n.Sprintf("tests contains non-test code: %s", entry.Name()))
 			}
 		}
 		if visibleEntries == 0 {
-			result.Errors = append(result.Errors, "tests must contain at least one test file")
+			result.Errors = append(result.Errors, i18n.T("tests must contain at least one test file"))
 		}
 	}
 	if data, err := os.ReadFile(filepath.Join(changeDir, "spec.md")); err == nil {
@@ -133,7 +133,7 @@ func validateAcceptanceFiles(projectRoot, acceptancePath string) ([]acceptance.L
 	// validateAcceptanceFiles preserves the specrelaycli validation boundary while delegating lifecycle checks.
 	contract, err := acceptance.Read(acceptancePath)
 	if err != nil {
-		return nil, []string{"invalid acceptance.json: " + err.Error()}
+		return nil, []string{i18n.Sprintf("invalid acceptance.json: %s", err)}
 	}
 	lifecycle := acceptance.ValidateLifecycle(projectRoot, contract)
 	errs := make([]string, 0, len(lifecycle.Diagnostics))
@@ -170,7 +170,7 @@ func validateRuntimeArtifactPolicy(projectRoot, changeDir string) []string {
 			text := string(data)
 			if strings.Contains(text, "test-results") && strings.Contains(text, "git ls-files") && strings.Contains(text, "--error-unmatch") {
 				rel, _ := filepath.Rel(projectRoot, path)
-				errs = append(errs, fmt.Sprintf("%s must not require test-results to be tracked with git ls-files; validate runtime output existence and content instead", rel))
+				errs = append(errs, i18n.Sprintf("%s must not require test-results to be tracked with git ls-files; validate runtime output existence and content instead", rel))
 			}
 		}
 	}
@@ -178,7 +178,7 @@ func validateRuntimeArtifactPolicy(projectRoot, changeDir string) []string {
 		for lineNo, line := range strings.Split(string(data), "\n") {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "!test-results") || strings.HasPrefix(trimmed, "!/test-results") {
-				errs = append(errs, fmt.Sprintf(".gitignore:%d must not add tracking exceptions for test-results; keep runtime results ignored", lineNo+1))
+				errs = append(errs, i18n.Sprintf(".gitignore:%d must not add tracking exceptions for test-results; keep runtime results ignored", lineNo+1))
 			}
 		}
 	}
@@ -205,13 +205,13 @@ func validateSpecText(text string) []string {
 	}
 	errs := []string{}
 	if !hasReq {
-		errs = append(errs, "spec.md is missing a requirement")
+		errs = append(errs, i18n.T("spec.md is missing a requirement"))
 	}
 	if !hasNorm {
-		errs = append(errs, "spec.md is missing a normative keyword")
+		errs = append(errs, i18n.T("spec.md is missing a normative keyword"))
 	}
 	if !hasScenario {
-		errs = append(errs, "spec.md is missing a scenario")
+		errs = append(errs, i18n.T("spec.md is missing a scenario"))
 	}
 	return errs
 }

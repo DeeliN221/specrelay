@@ -20,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/DeeliN221/specrelay/internal/acceptance"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 )
 
 const acceptanceRunKind = "acceptance_run"
@@ -133,7 +134,7 @@ type AcceptanceRunProducerResult struct {
 // dispatchRunAcceptanceCommand parses the runner command and writes JSON even for failed tests.
 func dispatchRunAcceptanceCommand(ctx context.Context, args []string, stdout io.Writer, repo string) error {
 	if !hasFlag(args[1:], "--json") {
-		return fmt.Errorf("Usage: specrelay flow run-acceptance --change <change-name> --json")
+		return i18n.Errorf("Usage: specrelay flow run-acceptance --change <change-name> --json")
 	}
 	changeName, err := requireFlagValue(args[1:], "--change")
 	if err != nil {
@@ -248,7 +249,7 @@ func runAcceptanceContract(ctx context.Context, repo, changeName string, contrac
 		}
 	}
 	if !result.Valid {
-		return result, fmt.Errorf("acceptance run failed: %s", result.ResultPath)
+		return result, i18n.Errorf("acceptance run failed: %s", result.ResultPath)
 	}
 	return result, nil
 }
@@ -260,7 +261,7 @@ func acceptanceRunResultDir(changeName string, binding acceptanceRunBinding) (st
 		return base, nil
 	}
 	if !safeAcceptancePathSegment(binding.RunID) || !safeAcceptancePathSegment(binding.Stage) || binding.Attempt < 1 {
-		return "", fmt.Errorf("acceptance run binding invalid: run=%q stage=%q attempt=%d", binding.RunID, binding.Stage, binding.Attempt)
+		return "", i18n.Errorf("acceptance run binding invalid: run=%q stage=%q attempt=%d", binding.RunID, binding.Stage, binding.Attempt)
 	}
 	return filepath.ToSlash(filepath.Join(base, binding.RunID, binding.Stage, fmt.Sprintf("attempt-%d", binding.Attempt))), nil
 }
@@ -544,7 +545,7 @@ func resolveAcceptanceArtifactDirectory(repo, relative string, create bool) (str
 			return "", statErr
 		}
 		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-			return "", fmt.Errorf("acceptance artifact directory must be a real directory inside the repository: %s", relative)
+			return "", i18n.Errorf("acceptance artifact directory must be a real directory inside the repository: %s", relative)
 		}
 	}
 	return current, nil
@@ -555,7 +556,7 @@ func cleanAcceptanceArtifactRelativePath(relative string) (string, error) {
 	clean := filepath.Clean(filepath.FromSlash(strings.TrimSpace(relative)))
 	if clean == "" || clean == "." || filepath.IsAbs(clean) || clean == ".." ||
 		strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("acceptance artifact path is invalid: %q", relative)
+		return "", i18n.Errorf("acceptance artifact path is invalid: %q", relative)
 	}
 	return clean, nil
 }
@@ -587,7 +588,7 @@ func writeAcceptanceArtifactFile(repo, relative string, data []byte) error {
 		return err
 	}
 	if !bytes.Equal(persisted, data) {
-		return fmt.Errorf("acceptance artifact content differs after atomic write: %s", relative)
+		return i18n.Errorf("acceptance artifact content differs after atomic write: %s", relative)
 	}
 	return nil
 }
@@ -603,7 +604,7 @@ func readAcceptanceArtifactFile(repo, relative string) ([]byte, error) {
 		return nil, err
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("acceptance artifact must be a regular file: %s", relative)
+		return nil, i18n.Errorf("acceptance artifact must be a regular file: %s", relative)
 	}
 	file, err := os.Open(path)
 	if err != nil {
@@ -615,10 +616,10 @@ func readAcceptanceArtifactFile(repo, relative string) ([]byte, error) {
 		return nil, err
 	}
 	if !opened.Mode().IsRegular() {
-		return nil, fmt.Errorf("acceptance artifact is not a regular file after opening: %s", relative)
+		return nil, i18n.Errorf("acceptance artifact is not a regular file after opening: %s", relative)
 	}
 	if !os.SameFile(info, opened) {
-		return nil, fmt.Errorf("acceptance artifact was replaced during inspection: %s", relative)
+		return nil, i18n.Errorf("acceptance artifact was replaced during inspection: %s", relative)
 	}
 	return io.ReadAll(file)
 }
@@ -628,7 +629,7 @@ func verifyQualityAcceptanceCheckpoint(repo string, state State, stage string) (
 	checkpoint, ok := state.AcceptanceRun[stage]
 	if !ok || checkpoint.Kind != acceptanceRunKind || checkpoint.Status != validationStatusPassed ||
 		checkpoint.Attempts < 1 || strings.TrimSpace(checkpoint.LastArtifact) == "" {
-		return AcceptanceRunResult{}, fmt.Errorf("stage %s is missing the last passing acceptance checkpoint", stage)
+		return AcceptanceRunResult{}, i18n.Errorf("stage %s is missing the last passing acceptance checkpoint", stage)
 	}
 	binding := acceptanceRunBinding{
 		RunID: state.RunID, Stage: stage, Attempt: checkpoint.Attempts,
@@ -639,7 +640,7 @@ func verifyQualityAcceptanceCheckpoint(repo string, state State, stage string) (
 	}
 	expectedPath := filepath.Join(resultDir, "result.json")
 	if checkpoint.LastArtifact != expectedPath {
-		return AcceptanceRunResult{}, fmt.Errorf(
+		return AcceptanceRunResult{}, i18n.Errorf(
 			"stage %s acceptance checkpoint path mismatch: state=%s expected=%s",
 			stage,
 			checkpoint.LastArtifact,
@@ -648,11 +649,11 @@ func verifyQualityAcceptanceCheckpoint(repo string, state State, stage string) (
 	}
 	data, err := readSealedAcceptanceArtifact(expectedPath)
 	if err != nil {
-		return AcceptanceRunResult{}, fmt.Errorf("read acceptance checkpoint failed: %w", err)
+		return AcceptanceRunResult{}, i18n.Errorf("read acceptance checkpoint failed: %w", err)
 	}
 	var result AcceptanceRunResult
 	if err := decodeStrictArtifactJSON(data, &result); err != nil {
-		return AcceptanceRunResult{}, fmt.Errorf("parse acceptance checkpoint failed: %w", err)
+		return AcceptanceRunResult{}, i18n.Errorf("parse acceptance checkpoint failed: %w", err)
 	}
 	contract, contractHash, err := readVerifiedRunAcceptance(repo, state)
 	if err != nil {
@@ -668,7 +669,7 @@ func verifyQualityAcceptanceCheckpoint(repo string, state State, stage string) (
 		return AcceptanceRunResult{}, err
 	}
 	if result.Summary != summarizeAcceptanceRun(result.Tests, result.Evidence) {
-		return AcceptanceRunResult{}, fmt.Errorf("stage %s acceptance summary does not match its details", stage)
+		return AcceptanceRunResult{}, i18n.Errorf("stage %s acceptance summary does not match its details", stage)
 	}
 	testsHash, evidenceHash := qualityAcceptanceProgressHashes(repo, result)
 	if result.TestsHash != testsHash || result.TestsHash != state.QualityLoop.TestsHash {
@@ -697,17 +698,17 @@ func validateQualityAcceptanceCheckpointIdentity(
 ) error {
 	switch {
 	case result.Change != state.ChangeName:
-		return fmt.Errorf("stage %s acceptance change binding mismatch", stage)
+		return i18n.Errorf("stage %s acceptance change binding mismatch", stage)
 	case result.RunID != state.RunID || result.Stage != stage || result.Attempt != checkpoint.Attempts:
-		return fmt.Errorf("stage %s acceptance run/stage/attempt binding mismatch", stage)
+		return i18n.Errorf("stage %s acceptance run/stage/attempt binding mismatch", stage)
 	case checkpoint.DiffHash == "" || result.DiffHash != checkpoint.DiffHash || result.DiffHash != state.QualityLoop.DiffHash:
-		return fmt.Errorf("stage %s acceptance diff binding mismatch", stage)
+		return i18n.Errorf("stage %s acceptance diff binding mismatch", stage)
 	case result.ContractHash != contractHash || result.ContractHash != state.AcceptanceHash:
-		return fmt.Errorf("stage %s acceptance contract binding mismatch", stage)
+		return i18n.Errorf("stage %s acceptance contract binding mismatch", stage)
 	case result.ResultPath != expectedPath:
-		return fmt.Errorf("stage %s acceptance result_path binding mismatch", stage)
+		return i18n.Errorf("stage %s acceptance result_path binding mismatch", stage)
 	case !result.Valid || result.Status != validationStatusPassed:
-		return fmt.Errorf("stage %s acceptance checkpoint is not a valid passing result", stage)
+		return i18n.Errorf("stage %s acceptance checkpoint is not a valid passing result", stage)
 	default:
 		return nil
 	}
@@ -716,28 +717,28 @@ func validateQualityAcceptanceCheckpointIdentity(
 // validateQualityAcceptanceCheckpointTests binds test metadata and every persisted log to the sealed contract.
 func validateQualityAcceptanceCheckpointTests(resultDir string, contract Acceptance, result AcceptanceRunResult) error {
 	if len(result.Tests) != len(contract.RequiredTests) {
-		return fmt.Errorf("acceptance checkpoint required_tests count mismatch")
+		return i18n.Errorf("acceptance checkpoint required_tests count mismatch")
 	}
 	for index, expected := range contract.RequiredTests {
 		actual := result.Tests[index]
 		if actual.ID != expected.ID || actual.Source != expected.Source || actual.Path != expected.Path ||
 			actual.Command != expected.Command || actual.Status != validationStatusPassed || actual.ExitCode != 0 {
-			return fmt.Errorf("acceptance checkpoint required_test %q result or contract binding mismatch", expected.ID)
+			return i18n.Errorf("acceptance checkpoint required_test %q result or contract binding mismatch", expected.ID)
 		}
 		expectedLog := filepath.Join(resultDir, "tests", acceptanceLogName(index, expected.ID))
 		if actual.SealedLogPath != expectedLog {
-			return fmt.Errorf("acceptance checkpoint required_test %q sealed log path mismatch", expected.ID)
+			return i18n.Errorf("acceptance checkpoint required_test %q sealed log path mismatch", expected.ID)
 		}
 		data, err := readSealedAcceptanceArtifact(actual.SealedLogPath)
 		if err != nil {
-			return fmt.Errorf("read acceptance checkpoint required_test %q log failed: %w", expected.ID, err)
+			return i18n.Errorf("read acceptance checkpoint required_test %q log failed: %w", expected.ID, err)
 		}
 		if actual.LogHash == "" || acceptanceLogContentHash(string(data)) != actual.LogHash {
-			return fmt.Errorf("acceptance checkpoint required_test %q log hash mismatch", expected.ID)
+			return i18n.Errorf("acceptance checkpoint required_test %q log hash mismatch", expected.ID)
 		}
 		progressHash := acceptanceLogProgressHash(string(data))
 		if actual.LogProgressHash != "" && progressHash != actual.LogProgressHash {
-			return fmt.Errorf("acceptance checkpoint required_test %q progress log hash mismatch", expected.ID)
+			return i18n.Errorf("acceptance checkpoint required_test %q progress log hash mismatch", expected.ID)
 		}
 	}
 	return nil
@@ -750,25 +751,25 @@ func validateQualityAcceptanceCheckpointEvidence(
 	persisted []AcceptanceRunEvidenceResult,
 ) error {
 	if len(persisted) != len(contract.RequiredEvidence) {
-		return fmt.Errorf("acceptance checkpoint required_evidence count mismatch")
+		return i18n.Errorf("acceptance checkpoint required_evidence count mismatch")
 	}
 	for index, expected := range contract.RequiredEvidence {
 		recorded := persisted[index]
 		if recorded.ID != expected.ID || recorded.Kind != expected.Kind || recorded.Path != expected.Path ||
 			recorded.Status != "present" {
-			return fmt.Errorf("acceptance checkpoint required_evidence %q contract binding mismatch", expected.ID)
+			return i18n.Errorf("acceptance checkpoint required_evidence %q contract binding mismatch", expected.ID)
 		}
 		expectedPath := filepath.Join(resultDir, "required", acceptanceEvidenceName(index, expected.ID, expected.Path))
 		if recorded.SealedPath != expectedPath {
-			return fmt.Errorf("acceptance checkpoint required_evidence %q sealed path mismatch", expected.ID)
+			return i18n.Errorf("acceptance checkpoint required_evidence %q sealed path mismatch", expected.ID)
 		}
 		rawHash, progressHash, _, err := qualityHashEvidenceFilePair(recorded.SealedPath, recorded.Kind)
 		if err != nil {
-			return fmt.Errorf("read acceptance checkpoint required_evidence %q failed: %w", expected.ID, err)
+			return i18n.Errorf("read acceptance checkpoint required_evidence %q failed: %w", expected.ID, err)
 		}
 		if recorded.ContentHash == "" || rawHash != recorded.ContentHash ||
 			recorded.ProgressHash == "" || progressHash != recorded.ProgressHash {
-			return fmt.Errorf("acceptance checkpoint required_evidence %q sealed content hash mismatch", expected.ID)
+			return i18n.Errorf("acceptance checkpoint required_evidence %q sealed content hash mismatch", expected.ID)
 		}
 	}
 	return nil
@@ -937,12 +938,12 @@ func (e *Engine) verifyQualityLoopArchivedAcceptance(state State) error {
 // verifyArchivedAcceptanceMatchesSealed permits only deterministic path rewrites made by specrelay archive.
 func verifyArchivedAcceptanceMatchesSealed(repo, archivedDir, changeName, expected string) error {
 	if !validAcceptanceHash(strings.TrimSpace(expected)) {
-		return fmt.Errorf("delivery acceptance is missing a valid sealed integrity hash")
+		return i18n.Errorf("delivery acceptance is missing a valid sealed integrity hash")
 	}
 	path := filepath.Join(archivedDir, "acceptance.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("read delivery acceptance %s failed: %w", path, err)
+		return i18n.Errorf("read delivery acceptance %s failed: %w", path, err)
 	}
 	normalized, err := normalizeQualityLoopArchivedReferences(repo, archivedDir, archivedDir, changeName, data)
 	if err != nil {
@@ -950,7 +951,7 @@ func verifyArchivedAcceptanceMatchesSealed(repo, archivedDir, changeName, expect
 	}
 	actual := acceptanceContentHash(normalized)
 	if actual != strings.TrimSpace(expected) {
-		return fmt.Errorf("delivery acceptance does not match the sealed contract: path=%s expected=%s actual=%s", path, expected, actual)
+		return i18n.Errorf("delivery acceptance does not match the sealed contract: path=%s expected=%s actual=%s", path, expected, actual)
 	}
 	return nil
 }
@@ -958,14 +959,14 @@ func verifyArchivedAcceptanceMatchesSealed(repo, archivedDir, changeName, expect
 // verifyAcceptanceMatchesSealed compares one delivery contract with the engine-owned run digest.
 func verifyAcceptanceMatchesSealed(path, expected string) error {
 	if !validAcceptanceHash(strings.TrimSpace(expected)) {
-		return fmt.Errorf("delivery acceptance is missing a valid sealed integrity hash")
+		return i18n.Errorf("delivery acceptance is missing a valid sealed integrity hash")
 	}
 	actual, err := acceptanceFileHash(path)
 	if err != nil {
-		return fmt.Errorf("read delivery acceptance %s failed: %w", path, err)
+		return i18n.Errorf("read delivery acceptance %s failed: %w", path, err)
 	}
 	if actual != strings.TrimSpace(expected) {
-		return fmt.Errorf("delivery acceptance does not match the sealed contract: path=%s expected=%s actual=%s", path, expected, actual)
+		return i18n.Errorf("delivery acceptance does not match the sealed contract: path=%s expected=%s actual=%s", path, expected, actual)
 	}
 	return nil
 }
@@ -1167,11 +1168,11 @@ func qualitySealedEvidenceObservationForState(repo string, state State) (quality
 		}
 		if result.RunID != state.RunID || result.Stage != stage || result.Attempt != checkpoint.Attempts ||
 			result.ResultPath != checkpoint.LastArtifact {
-			return qualityCurrentEvidenceObservation{}, true, fmt.Errorf("acceptance recovery snapshot %s binding mismatch", stage)
+			return qualityCurrentEvidenceObservation{}, true, i18n.Errorf("acceptance recovery snapshot %s binding mismatch", stage)
 		}
 		_, rawHash, _, progressHash := qualityAcceptanceSnapshotHashes(repo, result)
 		if rawHash != result.EvidenceHash || progressHash != result.EvidenceProgressHash {
-			return qualityCurrentEvidenceObservation{}, true, fmt.Errorf("acceptance recovery snapshot %s evidence hash mismatch", stage)
+			return qualityCurrentEvidenceObservation{}, true, i18n.Errorf("acceptance recovery snapshot %s evidence hash mismatch", stage)
 		}
 		eligible := len(result.Evidence) > 0
 		for _, item := range result.Evidence {
@@ -1394,7 +1395,7 @@ func qualityOpenEvidenceFile(path string) (*os.File, os.FileInfo, error) {
 		return nil, nil, err
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		return nil, nil, fmt.Errorf("evidence must be a regular file: %s", path)
+		return nil, nil, i18n.Errorf("evidence must be a regular file: %s", path)
 	}
 	file, err := os.Open(path)
 	if err != nil {
@@ -1407,7 +1408,7 @@ func qualityOpenEvidenceFile(path string) (*os.File, os.FileInfo, error) {
 	}
 	if !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
 		file.Close()
-		return nil, nil, fmt.Errorf("evidence was replaced during inspection: %s", path)
+		return nil, nil, i18n.Errorf("evidence was replaced during inspection: %s", path)
 	}
 	return file, opened, nil
 }

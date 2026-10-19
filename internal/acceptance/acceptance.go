@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"os/exec"
@@ -118,7 +118,7 @@ func Parse(data []byte) (Contract, error) {
 	cleaned := bytes.TrimSpace(data)
 	cleaned = bytes.TrimPrefix(cleaned, []byte{0xef, 0xbb, 0xbf})
 	if len(cleaned) == 0 {
-		return Contract{}, fmt.Errorf("artifact is empty")
+		return Contract{}, i18n.Errorf("artifact is empty")
 	}
 	dec := json.NewDecoder(bytes.NewReader(cleaned))
 	dec.DisallowUnknownFields()
@@ -126,7 +126,7 @@ func Parse(data []byte) (Contract, error) {
 		return Contract{}, err
 	}
 	if err := dec.Decode(&struct{}{}); err != io.EOF {
-		return Contract{}, fmt.Errorf("artifact contains trailing content; output must be a single JSON object")
+		return Contract{}, i18n.Errorf("artifact contains trailing content; output must be a single JSON object")
 	}
 	if err := Validate(contract); err != nil {
 		return Contract{}, err
@@ -137,31 +137,31 @@ func Parse(data []byte) (Contract, error) {
 // Validate enforces the pre-implementation acceptance contract shape.
 func Validate(contract Contract) error {
 	if strings.TrimSpace(contract.Summary) == "" {
-		return fmt.Errorf("acceptance summary must not be empty")
+		return i18n.Errorf("acceptance summary must not be empty")
 	}
 	if len(contract.RequiredTests) == 0 {
-		return fmt.Errorf("acceptance required_tests must contain at least one test")
+		return i18n.Errorf("acceptance required_tests must contain at least one test")
 	}
 	testIDs := map[string]bool{}
 	for i, test := range contract.RequiredTests {
 		if strings.TrimSpace(test.ID) == "" || strings.TrimSpace(test.Path) == "" || strings.TrimSpace(test.Command) == "" || strings.TrimSpace(test.Purpose) == "" {
-			return fmt.Errorf("required_tests[%d] is incomplete", i)
+			return i18n.Errorf("required_tests[%d] is incomplete", i)
 		}
 		if !validTestSource(test.Source) {
-			return fmt.Errorf("required_tests[%d].source is invalid: %q", i, test.Source)
+			return i18n.Errorf("required_tests[%d].source is invalid: %q", i, test.Source)
 		}
 		if testIDs[test.ID] {
-			return fmt.Errorf("required_tests[%d].id is duplicated: %q", i, test.ID)
+			return i18n.Errorf("required_tests[%d].id is duplicated: %q", i, test.ID)
 		}
 		if len(test.Assertions) == 0 {
-			return fmt.Errorf("required_tests[%d].assertions must contain at least one business-level assertion", i)
+			return i18n.Errorf("required_tests[%d].assertions must contain at least one business-level assertion", i)
 		}
 		for j, assertion := range test.Assertions {
 			if strings.TrimSpace(assertion) == "" {
-				return fmt.Errorf("required_tests[%d].assertions[%d] must not be empty", i, j)
+				return i18n.Errorf("required_tests[%d].assertions[%d] must not be empty", i, j)
 			}
 			if weakAssertion(assertion) {
-				return fmt.Errorf("required_tests[%d].assertions[%d] is a weak acceptance assertion: %q", i, j, assertion)
+				return i18n.Errorf("required_tests[%d].assertions[%d] is a weak acceptance assertion: %q", i, j, assertion)
 			}
 		}
 		testIDs[test.ID] = true
@@ -169,13 +169,13 @@ func Validate(contract Contract) error {
 	evidenceByID := map[string]Evidence{}
 	for i, evidence := range contract.RequiredEvidence {
 		if strings.TrimSpace(evidence.ID) == "" || strings.TrimSpace(evidence.Kind) == "" || strings.TrimSpace(evidence.Path) == "" || strings.TrimSpace(evidence.Purpose) == "" {
-			return fmt.Errorf("required_evidence[%d] is incomplete", i)
+			return i18n.Errorf("required_evidence[%d] is incomplete", i)
 		}
 		if !validEvidenceKind(evidence.Kind) {
-			return fmt.Errorf("required_evidence[%d].kind is invalid: %q", i, evidence.Kind)
+			return i18n.Errorf("required_evidence[%d].kind is invalid: %q", i, evidence.Kind)
 		}
 		if _, exists := evidenceByID[evidence.ID]; exists {
-			return fmt.Errorf("required_evidence[%d].id is duplicated: %q", i, evidence.ID)
+			return i18n.Errorf("required_evidence[%d].id is duplicated: %q", i, evidence.ID)
 		}
 		evidenceByID[evidence.ID] = evidence
 	}
@@ -189,29 +189,29 @@ func Validate(contract Contract) error {
 	}
 	for i, coverage := range contract.Coverage {
 		if strings.TrimSpace(coverage.Spec) == "" {
-			return fmt.Errorf("coverage[%d].spec must not be empty", i)
+			return i18n.Errorf("coverage[%d].spec must not be empty", i)
 		}
 		if len(coverage.Tests) == 0 {
-			return fmt.Errorf("coverage[%d].tests must reference at least one required_tests ID", i)
+			return i18n.Errorf("coverage[%d].tests must reference at least one required_tests ID", i)
 		}
 		for j, id := range coverage.Tests {
 			if strings.TrimSpace(id) == "" {
-				return fmt.Errorf("coverage[%d].tests[%d] must not be empty", i, j)
+				return i18n.Errorf("coverage[%d].tests[%d] must not be empty", i, j)
 			}
 			if !testIDs[id] {
-				return fmt.Errorf("coverage[%d].tests[%d] references an unknown required_tests ID: %q", i, j, id)
+				return i18n.Errorf("coverage[%d].tests[%d] references an unknown required_tests ID: %q", i, j, id)
 			}
 		}
 		for j, id := range coverage.Evidence {
 			if strings.TrimSpace(id) == "" {
-				return fmt.Errorf("coverage[%d].evidence[%d] must not be empty", i, j)
+				return i18n.Errorf("coverage[%d].evidence[%d] must not be empty", i, j)
 			}
 			if _, exists := evidenceByID[id]; !exists {
-				return fmt.Errorf("coverage[%d].evidence[%d] references an unknown required_evidence ID: %q", i, j, id)
+				return i18n.Errorf("coverage[%d].evidence[%d] references an unknown required_evidence ID: %q", i, j, id)
 			}
 		}
 		if len(coverage.Evidence) == 0 && strings.TrimSpace(coverage.Risk) == "" {
-			return fmt.Errorf("coverage[%d].risk must describe the remaining risk not covered by evidence", i)
+			return i18n.Errorf("coverage[%d].risk must describe the remaining risk not covered by evidence", i)
 		}
 	}
 	return nil
@@ -223,22 +223,22 @@ func ValidateSubmissionEvidenceContractForChange(contract Contract, changeName s
 		return err
 	}
 	if contract.SubmissionEvidence == nil {
-		return fmt.Errorf("proposal %q must declare submission_evidence before archiving", changeName)
+		return i18n.Errorf("proposal %q must declare submission_evidence before archiving", changeName)
 	}
 	if contract.DeliveryReport == nil {
-		return fmt.Errorf("proposal %q must declare a reviewer-facing delivery_report before archiving", changeName)
+		return i18n.Errorf("proposal %q must declare a reviewer-facing delivery_report before archiving", changeName)
 	}
 	if !validSubmissionChangeName(changeName) {
-		return fmt.Errorf("submission_evidence has an invalid changeName: %q", changeName)
+		return i18n.Errorf("submission_evidence has an invalid changeName: %q", changeName)
 	}
 	for i, item := range contract.SubmissionEvidence {
 		archiveRelative, ok := submissionPathUnder(item.ArchivePath, "tests/evidence/proposals")
 		if !ok {
-			return fmt.Errorf("submission_evidence[%d].archive_path must be inside tests/evidence/proposals/<change>/: %s", i, item.ArchivePath)
+			return i18n.Errorf("submission_evidence[%d].archive_path must be inside tests/evidence/proposals/<change>/: %s", i, item.ArchivePath)
 		}
 		archiveParts := strings.Split(archiveRelative, "/")
 		if len(archiveParts) < 2 || archiveParts[0] != changeName {
-			return fmt.Errorf("submission_evidence[%d].archive_path proposal directory must match current change %q: %s", i, changeName, item.ArchivePath)
+			return i18n.Errorf("submission_evidence[%d].archive_path proposal directory must match current change %q: %s", i, changeName, item.ArchivePath)
 		}
 	}
 	return nil
@@ -257,28 +257,28 @@ func ValidateSubmissionEvidenceForChange(projectRoot string, contract Contract, 
 		archivePath := filepath.Join(projectRoot, filepath.FromSlash(item.ArchivePath))
 		info, err := os.Lstat(archivePath)
 		if err != nil {
-			return fmt.Errorf("submission_evidence[%d].archive_path does not exist: %s: %w", i, item.ArchivePath, err)
+			return i18n.Errorf("submission_evidence[%d].archive_path does not exist: %s: %w", i, item.ArchivePath, err)
 		}
 		if !info.Mode().IsRegular() {
-			return fmt.Errorf("submission_evidence[%d].archive_path must be a regular file, not a symbolic link: %s", i, item.ArchivePath)
+			return i18n.Errorf("submission_evidence[%d].archive_path must be a regular file, not a symbolic link: %s", i, item.ArchivePath)
 		}
 		if info.Size() == 0 {
-			return fmt.Errorf("submission_evidence[%d].archive_path must not be an empty file: %s", i, item.ArchivePath)
+			return i18n.Errorf("submission_evidence[%d].archive_path must not be an empty file: %s", i, item.ArchivePath)
 		}
 		ignored, err := submissionPathGitIgnored(projectRoot, item.ArchivePath)
 		if err != nil {
-			return fmt.Errorf("submission_evidence[%d].archive_path cannot check Git ignore: %s: %w", i, item.ArchivePath, err)
+			return i18n.Errorf("submission_evidence[%d].archive_path cannot check Git ignore: %s: %w", i, item.ArchivePath, err)
 		}
 		if ignored {
-			return fmt.Errorf("submission_evidence[%d].archive_path must not be ignored by Git: %s", i, item.ArchivePath)
+			return i18n.Errorf("submission_evidence[%d].archive_path must not be ignored by Git: %s", i, item.ArchivePath)
 		}
 		if info.Size() > maxInlineSubmissionEvidenceBytes {
 			usesLFS, err := submissionPathUsesGitLFS(projectRoot, item.ArchivePath)
 			if err != nil {
-				return fmt.Errorf("submission_evidence[%d].archive_path cannot check Git LFS: %s: %w", i, item.ArchivePath, err)
+				return i18n.Errorf("submission_evidence[%d].archive_path cannot check Git LFS: %s: %w", i, item.ArchivePath, err)
 			}
 			if !usesLFS {
-				return fmt.Errorf(
+				return i18n.Errorf(
 					"submission_evidence[%d].archive_path exceeds 20 MiB and must be tracked with Git LFS: %s",
 					i,
 					item.ArchivePath,
@@ -286,18 +286,18 @@ func ValidateSubmissionEvidenceForChange(projectRoot string, contract Contract, 
 			}
 		}
 		if err := validateReviewableEvidenceFile(archivePath, evidenceByID[item.EvidenceID]); err != nil {
-			return fmt.Errorf("submission_evidence[%d] is not reviewable evidence: %s: %w", i, item.ArchivePath, err)
+			return i18n.Errorf("submission_evidence[%d] is not reviewable evidence: %s: %w", i, item.ArchivePath, err)
 		}
 	}
 	packageRoot := filepath.ToSlash(filepath.Join("tests", "evidence", "proposals", changeName))
 	for _, name := range []string{"README.md", "DELIVERY.md", "manifest.json"} {
 		relativePath := filepath.ToSlash(filepath.Join(packageRoot, name))
 		if err := validateSubmissionArchiveFile(projectRoot, relativePath); err != nil {
-			return fmt.Errorf("submission evidence bundle is missing a valid %s: %w", name, err)
+			return i18n.Errorf("submission evidence bundle is missing a valid %s: %w", name, err)
 		}
 	}
 	if err := ValidateDeliveryReportFileForChange(projectRoot, contract, changeName); err != nil {
-		return fmt.Errorf("reviewer-facing delivery report is invalid: %w", err)
+		return i18n.Errorf("reviewer-facing delivery report is invalid: %w", err)
 	}
 	if err := validateDeliveryComparisonArtifacts(projectRoot, contract); err != nil {
 		return err
@@ -310,20 +310,20 @@ func validateSubmissionArchiveFile(projectRoot, relativePath string) error {
 	archivePath := filepath.Join(projectRoot, filepath.FromSlash(relativePath))
 	info, err := os.Lstat(archivePath)
 	if err != nil {
-		return fmt.Errorf("%s does not exist: %w", relativePath, err)
+		return i18n.Errorf("%s does not exist: %w", relativePath, err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("%s must be a regular file, not a symbolic link", relativePath)
+		return i18n.Errorf("%s must be a regular file, not a symbolic link", relativePath)
 	}
 	if info.Size() == 0 {
-		return fmt.Errorf("%s must not be an empty file", relativePath)
+		return i18n.Errorf("%s must not be an empty file", relativePath)
 	}
 	ignored, err := submissionPathGitIgnored(projectRoot, relativePath)
 	if err != nil {
-		return fmt.Errorf("%s cannot check Git ignore: %w", relativePath, err)
+		return i18n.Errorf("%s cannot check Git ignore: %w", relativePath, err)
 	}
 	if ignored {
-		return fmt.Errorf("%s must not be ignored by Git", relativePath)
+		return i18n.Errorf("%s must not be ignored by Git", relativePath)
 	}
 	return nil
 }
@@ -335,7 +335,7 @@ func validateSubmissionEvidence(items []SubmissionEvidence, evidenceByID map[str
 		return nil
 	}
 	if len(items) == 0 {
-		return fmt.Errorf("submission_evidence must contain at least one final demonstration when declared")
+		return i18n.Errorf("submission_evidence must contain at least one final demonstration when declared")
 	}
 
 	seenEvidence := map[string]bool{}
@@ -344,37 +344,37 @@ func validateSubmissionEvidence(items []SubmissionEvidence, evidenceByID map[str
 	hasDemoVideo := false
 	for i, item := range items {
 		if strings.TrimSpace(item.EvidenceID) == "" || strings.TrimSpace(item.SourcePath) == "" || strings.TrimSpace(item.ArchivePath) == "" {
-			return fmt.Errorf("submission_evidence[%d] is incomplete", i)
+			return i18n.Errorf("submission_evidence[%d] is incomplete", i)
 		}
 		evidence, exists := evidenceByID[item.EvidenceID]
 		if !exists {
-			return fmt.Errorf("submission_evidence[%d].evidence_id references an unknown required_evidence ID: %q", i, item.EvidenceID)
+			return i18n.Errorf("submission_evidence[%d].evidence_id references an unknown required_evidence ID: %q", i, item.EvidenceID)
 		}
 		if seenEvidence[item.EvidenceID] {
-			return fmt.Errorf("submission_evidence[%d].evidence_id is duplicated: %q", i, item.EvidenceID)
+			return i18n.Errorf("submission_evidence[%d].evidence_id is duplicated: %q", i, item.EvidenceID)
 		}
 		seenEvidence[item.EvidenceID] = true
 		if item.SourcePath != evidence.Path {
-			return fmt.Errorf("submission_evidence[%d].source_path must equal the path of required_evidence %q: %s", i, item.EvidenceID, evidence.Path)
+			return i18n.Errorf("submission_evidence[%d].source_path must equal the path of required_evidence %q: %s", i, item.EvidenceID, evidence.Path)
 		}
 		if _, ok := submissionPathUnder(item.SourcePath, "test-results"); !ok {
-			return fmt.Errorf("submission_evidence[%d].source_path must be a normalized relative file path under test-results/: %s", i, item.SourcePath)
+			return i18n.Errorf("submission_evidence[%d].source_path must be a normalized relative file path under test-results/: %s", i, item.SourcePath)
 		}
 		archiveRelative, ok := submissionPathUnder(item.ArchivePath, "tests/evidence/proposals")
 		if !ok {
-			return fmt.Errorf("submission_evidence[%d].archive_path must be inside tests/evidence/proposals/<change>/: %s", i, item.ArchivePath)
+			return i18n.Errorf("submission_evidence[%d].archive_path must be inside tests/evidence/proposals/<change>/: %s", i, item.ArchivePath)
 		}
 		archiveParts := strings.Split(archiveRelative, "/")
 		if len(archiveParts) < 2 {
-			return fmt.Errorf("submission_evidence[%d].archive_path must include a proposal directory and evidence file: %s", i, item.ArchivePath)
+			return i18n.Errorf("submission_evidence[%d].archive_path must include a proposal directory and evidence file: %s", i, item.ArchivePath)
 		}
 		if proposalDir == "" {
 			proposalDir = archiveParts[0]
 		} else if proposalDir != archiveParts[0] {
-			return fmt.Errorf("submission_evidence[%d].archive_path must use the same proposal directory as the evidence bundle: %s", i, item.ArchivePath)
+			return i18n.Errorf("submission_evidence[%d].archive_path must use the same proposal directory as the evidence bundle: %s", i, item.ArchivePath)
 		}
 		if seenArchives[item.ArchivePath] {
-			return fmt.Errorf("submission_evidence[%d].archive_path is duplicated: %q", i, item.ArchivePath)
+			return i18n.Errorf("submission_evidence[%d].archive_path is duplicated: %q", i, item.ArchivePath)
 		}
 		seenArchives[item.ArchivePath] = true
 		if evidence.Kind == "demo_video" {
@@ -383,11 +383,11 @@ func validateSubmissionEvidence(items []SubmissionEvidence, evidenceByID map[str
 	}
 	for evidenceID := range evidenceByID {
 		if !seenEvidence[evidenceID] {
-			return fmt.Errorf("submission_evidence must cover all required_evidence; missing: %q", evidenceID)
+			return i18n.Errorf("submission_evidence must cover all required_evidence; missing: %q", evidenceID)
 		}
 	}
 	if !hasDemoVideo {
-		return fmt.Errorf("submission_evidence must reference at least one required_evidence with kind=demo_video; before/after comparisons do not replace a final demonstration video")
+		return i18n.Errorf("submission_evidence must reference at least one required_evidence with kind=demo_video; before/after comparisons do not replace a final demonstration video")
 	}
 	return nil
 }

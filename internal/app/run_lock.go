@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -63,11 +63,11 @@ func interruptLockedRun(repo, runID string) (LockInfo, bool, error) {
 		return LockInfo{}, false, nil
 	}
 	if lock.RunID != runID {
-		return LockInfo{}, false, fmt.Errorf("run %s:  lock records the wrong resource %s; refusing to stop", runID, lock.RunID)
+		return LockInfo{}, false, i18n.Errorf("run %s:  lock records the wrong resource %s; refusing to stop", runID, lock.RunID)
 	}
 	hostname, _ := os.Hostname()
 	if lock.Hostname != "" && hostname != "" && lock.Hostname != hostname {
-		return LockInfo{}, false, fmt.Errorf("run %s is locked on host %s by process %d; cannot stop it from host %s", runID, lock.Hostname, lock.PID, hostname)
+		return LockInfo{}, false, i18n.Errorf("run %s is locked on host %s by process %d; cannot stop it from host %s", runID, lock.Hostname, lock.PID, hostname)
 	}
 	if lock.PID == os.Getpid() {
 		return lock, true, nil
@@ -92,7 +92,7 @@ func ArchiveSupersededRun(repo, runID string) error {
 		return newRunLockedError(runID)
 	}
 	if status == lockStatusUnknown {
-		return fmt.Errorf("run %s has an uncertain lock; cannot archive", runID)
+		return i18n.Errorf("run %s has an uncertain lock; cannot archive", runID)
 	}
 	state.Status = statusArchived
 	state.Error = "superseded by a newer run"
@@ -118,10 +118,10 @@ func acquireLockForGOOS(repo, runID, goos string) (func(), error) {
 		return nil, newRunLockedError(runID)
 	}
 	if !acquired && status == lockStatusUnknown {
-		return nil, fmt.Errorf("run %s:  lock is uncertain; resume or stop through the interactive menu", runID)
+		return nil, i18n.Errorf("run %s:  lock is uncertain; resume or stop through the interactive menu", runID)
 	}
 	if !acquired {
-		return nil, fmt.Errorf("run %s failed to acquire lock", runID)
+		return nil, i18n.Errorf("run %s failed to acquire lock", runID)
 	}
 	return unlock, nil
 }
@@ -165,7 +165,7 @@ func acquireOwnedLock(path, resourceID, goos string) (func(), bool, lockStatus, 
 func newLockInfo(resourceID string) (LockInfo, error) {
 	token := make([]byte, 16)
 	if _, err := rand.Read(token); err != nil {
-		return LockInfo{}, fmt.Errorf("generate lock owner token failed: %w", err)
+		return LockInfo{}, i18n.Errorf("generate lock owner token failed: %w", err)
 	}
 	hostname, _ := os.Hostname()
 	return LockInfo{
@@ -306,7 +306,7 @@ func parseLockInfo(data []byte) (LockInfo, error) {
 		return LockInfo{}, err
 	}
 	if lock.PID <= 0 {
-		return LockInfo{}, fmt.Errorf("lock pid must not be empty")
+		return LockInfo{}, i18n.Errorf("lock pid must not be empty")
 	}
 	return lock, nil
 }

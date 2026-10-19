@@ -2,7 +2,7 @@
 package app
 
 import (
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"strings"
 )
@@ -10,7 +10,7 @@ import (
 // runValidateRepairArtifact validates one durable repair checkpoint.
 func runValidateRepairArtifact(args []string, stdout io.Writer) error {
 	if !hasFlag(args, "--artifact") {
-		return fmt.Errorf("Usage: specrelay flow validate-repair --artifact <artifact-path> [--json]")
+		return i18n.Errorf("Usage: specrelay flow validate-repair --artifact <artifact-path> [--json]")
 	}
 	path, err := requireFlagValue(args, "--artifact")
 	if err != nil {
@@ -18,7 +18,7 @@ func runValidateRepairArtifact(args []string, stdout io.Writer) error {
 	}
 	path = strings.TrimSpace(path)
 	if path == "" {
-		return fmt.Errorf("repair artifact path must not be empty")
+		return i18n.Errorf("repair artifact path must not be empty")
 	}
 	repair, err := ReadRepair(path)
 	if hasFlag(args, "--json") {
@@ -36,6 +36,6 @@ func runValidateRepairArtifact(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "repair artifact is valid: %s (decision=%s, findings=%d)\n", path, repair.Decision, len(repair.Findings))
+	i18n.Fprintf(stdout, "repair artifact is valid: %s (decision=%s, findings=%d)\n", path, repair.Decision, len(repair.Findings))
 	return nil
 }

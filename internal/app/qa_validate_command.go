@@ -2,7 +2,7 @@
 package app
 
 import (
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"strings"
 )
@@ -21,7 +21,7 @@ type qaValidationResult struct {
 // runValidateQAArtifact checks one QA artifact against its acceptance contract.
 func runValidateQAArtifact(args []string, stdout io.Writer) error {
 	if !hasFlag(args, "--artifact") || !hasFlag(args, "--acceptance") {
-		return fmt.Errorf("Usage: specrelay flow validate-qa --artifact <artifact-path> --acceptance <acceptance-path> [--json]")
+		return i18n.Errorf("Usage: specrelay flow validate-qa --artifact <artifact-path> --acceptance <acceptance-path> [--json]")
 	}
 	path, err := requireFlagValue(args, "--artifact")
 	if err != nil {
@@ -34,10 +34,10 @@ func runValidateQAArtifact(args []string, stdout io.Writer) error {
 	path = strings.TrimSpace(path)
 	acceptancePath = strings.TrimSpace(acceptancePath)
 	if path == "" {
-		return fmt.Errorf("qa artifact path must not be empty")
+		return i18n.Errorf("qa artifact path must not be empty")
 	}
 	if acceptancePath == "" {
-		return fmt.Errorf("acceptance path must not be empty")
+		return i18n.Errorf("acceptance path must not be empty")
 	}
 
 	qa, err := validateQAArtifact(path, acceptancePath)
@@ -66,11 +66,11 @@ func runValidateQAArtifact(args []string, stdout io.Writer) error {
 
 	if err != nil {
 		if ar, ok := err.(ReviewArtifactError); ok {
-			return fmt.Errorf("%s: %s", ar.Code, ar.Reason)
+			return i18n.Errorf("%s: %s", ar.Code, ar.Reason)
 		}
 		return err
 	}
-	fmt.Fprintf(stdout, "qa artifact is valid: %s (decision=%s, findings=%d, acceptance_matrix=%d)\n", path, qa.Decision, len(qa.Findings), len(qa.AcceptanceMatrix))
+	i18n.Fprintf(stdout, "qa artifact is valid: %s (decision=%s, findings=%d, acceptance_matrix=%d)\n", path, qa.Decision, len(qa.Findings), len(qa.AcceptanceMatrix))
 	return nil
 }
 

@@ -3,7 +3,6 @@ package specrelaycli
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,20 +10,21 @@ import (
 	"unicode/utf8"
 
 	"github.com/DeeliN221/specrelay/internal/acceptance"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 )
 
 func (c *cli) archiveCmd(args []string) error {
 	// archiveCmd performs deterministic file moves; agents merge archived specs afterward.
 	if hasHelp(args) {
-		fmt.Fprintln(c.out, "Usage:specrelay archive <change> --yes")
+		i18n.Fprintln(c.out, "Usage:specrelay archive <change> --yes")
 		return nil
 	}
 	if len(args) == 0 {
-		return errors.New("Usage:specrelay archive <change> --yes")
+		return i18n.New("Usage:specrelay archive <change> --yes")
 	}
 	change := args[0]
 	if !hasArg(args[1:], "--yes") {
-		return errors.New("archiving requires an explicit --yes")
+		return i18n.New("archiving requires an explicit --yes")
 	}
 	root, err := stateRoot()
 	if err != nil {
@@ -32,20 +32,20 @@ func (c *cli) archiveCmd(args []string) error {
 	}
 	result := validateChange(root, change)
 	if !result.Valid {
-		return fmt.Errorf("%s: %s", change, strings.Join(result.Errors, "; "))
+		return i18n.Errorf("%s: %s", change, strings.Join(result.Errors, "; "))
 	}
 	changeDir := filepath.Join(root, "changes", change)
 	contract, err := acceptance.Read(filepath.Join(changeDir, "acceptance.json"))
 	if err != nil {
-		return fmt.Errorf("%s: invalid acceptance.json: %w", change, err)
+		return i18n.Errorf("%s: invalid acceptance.json: %w", change, err)
 	}
 	if err := acceptance.ValidateSubmissionEvidenceForChange(filepath.Dir(root), contract, change); err != nil {
-		return fmt.Errorf("%s: invalid submission evidence bundle: %w", change, err)
+		return i18n.Errorf("%s: invalid submission evidence bundle: %w", change, err)
 	}
 	date := c.now().Format("2006-01-02")
 	archiveDir := filepath.Join(root, "changes", "archive", date+"-"+change)
 	if _, err := os.Stat(archiveDir); err == nil {
-		return fmt.Errorf("archive destination already exists: %s", archiveDir)
+		return i18n.Errorf("archive destination already exists: %s", archiveDir)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
@@ -61,7 +61,7 @@ func (c *cli) archiveCmd(args []string) error {
 		_ = os.Rename(archiveDir, changeDir)
 		return err
 	}
-	fmt.Fprintf(c.out, "Archived to %s\n", archiveDir)
+	i18n.Fprintf(c.out, "Archived to %s\n", archiveDir)
 	return nil
 }
 

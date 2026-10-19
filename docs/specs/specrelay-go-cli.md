@@ -4,11 +4,17 @@ This document defines the default English command contract. The [Chinese specifi
 
 ## Commands
 
-The CLI MUST expose `list | l [--json]` and `install | i [--global | -g]` as daily commands. Automation retains `create`, `status <change> [--json]`, `validate <change> [--json]`, and `archive <change> --yes`. `flow` exposes the workflow runner. Removed top-level `init`, `plan`, and `exec` commands MUST fail.
+The CLI MUST expose `list | l [--json]`, `install | i [--global | -g]`, and `language [en|zh-CN] [--global] [--json]` as daily commands. Automation retains `create`, `status <change> [--json]`, `validate <change> [--json]`, and `archive <change> --yes`. `flow` exposes the workflow runner. Removed top-level `init`, `plan`, and `exec` commands MUST fail.
 
 `specrelay create` MUST return the next numeric proposal identifier without creating a directory or files. The maximum number is computed across active and dated archived proposals. `specrelay create` MUST NOT accept a proposal-name argument.
 
 Default help, statuses, diagnostics, generated delivery reports, and bundled instructions MUST be English. JSON keys and machine status values MUST remain stable. Change names MUST accept English and Unicode letters, digits, and hyphens while rejecting path separators, spaces, and a leading hyphen. Numbered active changes use `<positive-number>-<description>`.
+
+### Language
+
+English is the default user-visible language; `zh-CN` is the other supported language. `specrelay language` with no value MUST print the effective language. With a value it MUST persist `language` in the repository `specrelay-flow.yaml` (or `~/specrelay-flow.yaml` with `--global`), creating the configuration file when absent. Language resolution order is repository configuration, user-level configuration, then English.
+
+The effective language MUST select the bundled `SKILL.md` variant installed by `specrelay install`, the default flow prompts written by `specrelay flow config`, and CLI help, status, and error output. Switching language MUST refresh skill directories that are already installed for the project and user. User-customized prompts MUST be preserved; untouched built-in prompt defaults MUST follow the selected language. Machine-readable JSON keys and status values MUST remain stable English identifiers.
 
 ## Change sizes
 

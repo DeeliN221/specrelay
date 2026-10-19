@@ -2,7 +2,7 @@
 package acceptance
 
 import (
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,7 +48,7 @@ func BuildLifecycle(projectRoot string, contract Contract) LifecycleResult {
 		result.Diagnostics = append(result.Diagnostics, LifecycleDiagnostic{
 			Code:     "contract_shape",
 			Severity: "error",
-			Message:  "acceptance.json is invalid: " + err.Error(),
+			Message:  i18n.Sprintf("acceptance.json is invalid: %s", err),
 		})
 		return result
 	}
@@ -59,7 +59,7 @@ func BuildLifecycle(projectRoot string, contract Contract) LifecycleResult {
 			result.Diagnostics = append(result.Diagnostics, LifecycleDiagnostic{
 				Code:     "required_test_path",
 				Severity: "error",
-				Message:  fmt.Sprintf("required_tests[%d].path must be a relative test path: %s", i, test.Path),
+				Message:  i18n.Sprintf("required_tests[%d].path must be a relative test path: %s", i, test.Path),
 				TestID:   test.ID,
 				Path:     test.Path,
 			})
@@ -71,7 +71,7 @@ func BuildLifecycle(projectRoot string, contract Contract) LifecycleResult {
 				result.Diagnostics = append(result.Diagnostics, LifecycleDiagnostic{
 					Code:     "required_test_missing",
 					Severity: "error",
-					Message:  fmt.Sprintf("required_tests[%d].path references a test that does not exist: %s", i, test.Path),
+					Message:  i18n.Sprintf("required_tests[%d].path references a test that does not exist: %s", i, test.Path),
 					TestID:   test.ID,
 					Path:     test.Path,
 				})
@@ -81,7 +81,7 @@ func BuildLifecycle(projectRoot string, contract Contract) LifecycleResult {
 			result.Diagnostics = append(result.Diagnostics, LifecycleDiagnostic{
 				Code:     "required_test_command_path",
 				Severity: "error",
-				Message:  fmt.Sprintf("required_tests[%d].command must reference path: %s", i, test.Path),
+				Message:  i18n.Sprintf("required_tests[%d].command must reference path: %s", i, test.Path),
 				TestID:   test.ID,
 				Path:     test.Path,
 			})
@@ -92,7 +92,7 @@ func BuildLifecycle(projectRoot string, contract Contract) LifecycleResult {
 			result.Diagnostics = append(result.Diagnostics, LifecycleDiagnostic{
 				Code:       "required_evidence_path",
 				Severity:   "error",
-				Message:    fmt.Sprintf("required_evidence[%d].path must be a relative artifact path: %s", i, evidence.Path),
+				Message:    i18n.Sprintf("required_evidence[%d].path must be a relative artifact path: %s", i, evidence.Path),
 				EvidenceID: evidence.ID,
 				Path:       evidence.Path,
 			})
@@ -101,7 +101,7 @@ func BuildLifecycle(projectRoot string, contract Contract) LifecycleResult {
 			result.Diagnostics = append(result.Diagnostics, LifecycleDiagnostic{
 				Code:       "required_evidence_producer_missing",
 				Severity:   "error",
-				Message:    fmt.Sprintf("required_evidence[%d] %q has no traceable required_tests producer: explicitly produce the evidence ID/path in the coverage-linked test command, purpose, assertions, test file, or adjacent .sh wrapper", i, evidence.ID),
+				Message:    i18n.Sprintf("required_evidence[%d] %q has no traceable required_tests producer: explicitly produce the evidence ID/path in the coverage-linked test command, purpose, assertions, test file, or adjacent .sh wrapper", i, evidence.ID),
 				EvidenceID: evidence.ID,
 				Path:       evidence.Path,
 			})

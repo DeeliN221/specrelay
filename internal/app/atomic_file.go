@@ -2,7 +2,7 @@
 package app
 
 import (
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"path/filepath"
 )
@@ -35,7 +35,7 @@ func atomicWriteFile(path string, data []byte, mode os.FileMode) error {
 		return err
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("atomic replacement of %s failed: %w", path, err)
+		return i18n.Errorf("atomic replacement of %s failed: %w", path, err)
 	}
 	return nil
 }

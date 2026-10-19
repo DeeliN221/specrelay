@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"os/exec"
@@ -348,7 +349,7 @@ func loadCleanRunState(repo, runID string) (State, error) {
 		return State{}, err
 	}
 	if state.RunID != runID {
-		return State{}, fmt.Errorf("state run_id %q does not match requested run %q", state.RunID, runID)
+		return State{}, i18n.Errorf("state run_id %q does not match requested run %q", state.RunID, runID)
 	}
 	return state, nil
 }
@@ -432,11 +433,11 @@ func parseCleanOptions(args []string) (CleanOptions, error) {
 		case "--json":
 			options.JSON = true
 		default:
-			return CleanOptions{}, fmt.Errorf("Usage: specrelay flow clean [--agent-sessions] [--dry-run] [--json]")
+			return CleanOptions{}, i18n.Errorf("Usage: specrelay flow clean [--agent-sessions] [--dry-run] [--json]")
 		}
 	}
 	if options.JSON && !options.DryRun {
-		return CleanOptions{}, fmt.Errorf("Usage: specrelay flow clean --dry-run --json")
+		return CleanOptions{}, i18n.Errorf("Usage: specrelay flow clean --dry-run --json")
 	}
 	return options, nil
 }
@@ -464,6 +465,6 @@ func runClean(stdout io.Writer, repo string, args ...string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprint(stdout, formatCleanResult(result, repo))
+	i18n.Fprint(stdout, formatCleanResult(result, repo))
 	return nil
 }

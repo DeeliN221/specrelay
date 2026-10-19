@@ -4,7 +4,7 @@ package app
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -27,13 +27,13 @@ func runtimeRootForGOOS(goos string) (string, error) {
 		}
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", fmt.Errorf("resolve user home directory failed: %w", err)
+			return "", i18n.Errorf("resolve user home directory failed: %w", err)
 		}
 		return filepath.Join(home, ".local", "state", "specrelay", "flow"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("resolve user home directory failed: %w", err)
+		return "", i18n.Errorf("resolve user home directory failed: %w", err)
 	}
 	return filepath.Join(home, ".local", "state", "specrelay", "flow"), nil
 }
@@ -106,7 +106,7 @@ func batchesRoot(repo string) (string, error) {
 func runDir(repo, runID string) string {
 	root, err := runsRoot(repo)
 	if err != nil {
-		panic(fmt.Errorf("resolve specrelay flow runtime run path failed: %w", err))
+		panic(i18n.Errorf("resolve specrelay flow runtime run path failed: %w", err))
 	}
 	return filepath.Join(root, runID)
 }
@@ -120,7 +120,7 @@ func acceptancePath(repo, changeName string) string {
 func batchDir(repo, batchID string) string {
 	root, err := batchesRoot(repo)
 	if err != nil {
-		panic(fmt.Errorf("resolve specrelay flow runtime batch path failed: %w", err))
+		panic(i18n.Errorf("resolve specrelay flow runtime batch path failed: %w", err))
 	}
 	return filepath.Join(root, batchID)
 }
