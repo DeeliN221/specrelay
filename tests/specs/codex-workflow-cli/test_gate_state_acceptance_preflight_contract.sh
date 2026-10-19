@@ -17,7 +17,7 @@ note() {
 cd "$ROOT"
 
 note "Run Go regressions for artifact_gates, specrelay validate and acceptance_preflight"
-go test ./internal/app -run 'TestRootArtifactGateFailureUsesArtifactGateState|TestRootExecutionRunsOzValidateAsRetryableGate|TestRootAcceptancePreflight' -count=1 2>&1 | tee -a "$LOG"
+go test ./internal/app -run 'TestRootArtifactGateFailureUsesArtifactGateState|TestRootExecutionRunsSpecrelayValidateAsRetryableGate|TestRootAcceptancePreflight' -count=1 2>&1 | tee -a "$LOG"
 
 note "Verify runtime evidence exists and contains PASS"
 grep -q 'PASS' "$LOG"

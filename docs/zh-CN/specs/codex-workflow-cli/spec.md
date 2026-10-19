@@ -410,13 +410,13 @@
 
 // Sources: 24-树状简化wo配置
 
-系统必须支持从内置默认、`~/oz-flow.yaml`、仓库 `oz-flow.yaml` 或 `oz-flow.yml` 读取根节点树状工作流配置，并在缺失配置时使用内置默认值。系统必须拒绝旧配置格式和旧字段，避免用户误以为旧配置仍然生效。
+系统必须支持从内置默认、`~/specrelay-flow.yaml`、仓库 `specrelay-flow.yaml` 或 `specrelay-flow.yml` 读取根节点树状工作流配置，并在缺失配置时使用内置默认值。系统必须拒绝旧配置格式和旧字段，避免用户误以为旧配置仍然生效。
 
 #### 场景：初始化默认配置
 
 - **当** 用户在仓库根目录调用 `specrelay flow config`
-- **且** 仓库根目录不存在 `oz-flow.yaml` 或 `oz-flow.yml`
-- **则** 系统创建默认 `oz-flow.yaml`
+- **且** 仓库根目录不存在 `specrelay-flow.yaml` 或 `specrelay-flow.yml`
+- **则** 系统创建默认 `specrelay-flow.yaml`
 - **且** 默认配置根节点包含 `stages`、`validation` 和 `prompts`
 - **且** 默认配置包含 `stages.planning/execution/repair/qa/archive`
 - **且** 每类会话配置包含 `agent` 和 `reasoning`
@@ -433,13 +433,13 @@
 #### 场景：初始化全局默认配置
 
 - **当** 用户调用 `specrelay flow config --global`
-- **且** `~/oz-flow.yaml` 不存在
-- **则** 系统创建 `~/oz-flow.yaml`
+- **且** `~/specrelay-flow.yaml` 不存在
+- **则** 系统创建 `~/specrelay-flow.yaml`
 - **且** 不创建 legacy home dir
 
 #### 场景：避免覆盖配置
 
-- **当** 仓库根目录已经存在 `oz-flow.yaml` 或 `oz-flow.yml`
+- **当** 仓库根目录已经存在 `specrelay-flow.yaml` 或 `specrelay-flow.yml`
 - **且** 用户调用 `specrelay flow config`
 - **则** 系统报错
 - **且** 不覆盖已有配置
@@ -454,11 +454,11 @@
 
 - **当** 用户调用 `specrelay flow install`
 - **则** 系统返回非零退出
-- **且** 错误信息提示 prompt 已内嵌在 `oz-flow.yaml` 中
+- **且** 错误信息提示 prompt 已内嵌在 `specrelay-flow.yaml` 中
 
 #### 场景：读取 YAML 配置
 
-- **当** 仓库根目录存在 `oz-flow.yaml`
+- **当** 仓库根目录存在 `specrelay-flow.yaml`
 - **且** 用户进入规划模式或启动 sealed run
 - **则** 系统读取根节点工作流配置
 - **且** 校验 reasoning 只能是 `low`、`medium`、`high`、`xhigh`
@@ -468,7 +468,7 @@
 
 #### 场景：旧顶层和旧别名字段不能继续生效
 
-- **当** `oz-flow.yaml` 或 `~/oz-flow.yaml` 包含 `wo:`、`workflow:`、`engine:`、`defaults:`、`iterations:`、`permissions:`、`cli:`、`tool:`、`parallel.groups` 或 `validation.max_attempts_per_stage`
+- **当** `specrelay-flow.yaml` 或 `~/specrelay-flow.yaml` 包含 `wo:`、`workflow:`、`engine:`、`defaults:`、`iterations:`、`permissions:`、`cli:`、`tool:`、`parallel.groups` 或 `validation.max_attempts_per_stage`
 - **则** 配置读取失败
 - **且** 错误信息包含对应旧字段名
 - **且** 不创建新的运行态
@@ -476,13 +476,13 @@
 
 #### 场景：配置文件冲突
 
-- **当** 仓库根目录同时存在 `oz-flow.yaml` 和 `oz-flow.yml`
+- **当** 仓库根目录同时存在 `specrelay-flow.yaml` 和 `specrelay-flow.yml`
 - **则** 系统启动前报错
 - **且** 不创建 sealed run
 
 #### 场景：无配置文件
 
-- **当** 仓库根目录不存在 `oz-flow.yaml` 或 `oz-flow.yml`
+- **当** 仓库根目录不存在 `specrelay-flow.yaml` 或 `specrelay-flow.yml`
 - **则** 系统使用内置默认配置
 
 #### 场景：workflow engine 是内部实现细节
@@ -513,12 +513,12 @@
 
 ### 需求：默认配置经过审计并保持一致
 
-系统必须审计默认 `oz-flow.yaml` 相关配置，并保证所有默认来源一致。
+系统必须审计默认 `specrelay-flow.yaml` 相关配置，并保证所有默认来源一致。
 
 #### 场景：生成默认配置
 
 - **当** 用户运行 `specrelay flow config`
-- **则** 生成的 `oz-flow.yaml` 必须使用审计后的默认工作流值
+- **则** 生成的 `specrelay-flow.yaml` 必须使用审计后的默认工作流值
 - **且** 生成的 prompt 必须使用精简后的默认模板
 - **且** 生成的默认值必须与内置 `DefaultWorkflowConfig` 一致
 
@@ -570,9 +570,9 @@
 #### 场景：默认配置不再生成外置子代理配置
 
 - **当** 用户在临时 git 仓库运行真实 `specrelay flow config`
-- **则** 默认 `oz-flow.yaml` 不包含 `parallel:`、`subagent_guard:` 或 `before:`
-- **且** 默认 `oz-flow.yaml` 不包含内置固定 helper 名称，例如 `代码库侦察员`、`目标核对审核员`、`浏览器路径测试员`
-- **且** 默认 `oz-flow.yaml` 仍包含 execution、repair、qa、archive 主阶段配置
+- **则** 默认 `specrelay-flow.yaml` 不包含 `parallel:`、`subagent_guard:` 或 `before:`
+- **且** 默认 `specrelay-flow.yaml` 不包含内置固定 helper 名称，例如 `代码库侦察员`、`目标核对审核员`、`浏览器路径测试员`
+- **且** 默认 `specrelay-flow.yaml` 仍包含 execution、repair、qa、archive 主阶段配置
 - **测试**：`tests/specs/codex-workflow-cli/test_go_dag_graph_status_contract.sh`
 - **关键断言**：真实 `cmd/specrelay` 生成的默认配置只保留主阶段配置，不暴露固定外置子代理
 - **剩余风险**：用户自定义旧配置不自动迁移，只在读取时明确拒绝
@@ -599,7 +599,7 @@
 
 #### 场景：旧外置子代理配置字段明确拒绝
 
-- **给定** 仓库 `oz-flow.yaml` 包含 `parallel`、`subagents`、`subagent_guard` 或 `stages.execution.before`
+- **给定** 仓库 `specrelay-flow.yaml` 包含 `parallel`、`subagents`、`subagent_guard` 或 `stages.execution.before`
 - **当** 用户运行真实 `specrelay flow graph --change demo --format json`
 - **则** 配置读取必须失败
 - **且** 错误信息必须提到对应字段已删除或不再支持
@@ -612,8 +612,8 @@
 
 - **当** 检查 `internal/app` 生产源码并运行核心 Go 回归
 - **则** `internal/app` 不再包含 `nodeRunSubagent`、`nodeFanin`、`runSubagentAttempts`、`ParallelMemberResult`、`memberArtifactPath` 或 `ValidateParallelQAGate`
-- **且** `go test ./internal/app ./internal/ozcli ./tests -count=1` 必须通过
-- **测试**：`go test ./internal/app ./internal/ozcli ./tests -count=1`
+- **且** `go test ./internal/app ./internal/specrelaycli ./tests -count=1` 必须通过
+- **测试**：`go test ./internal/app ./internal/specrelaycli ./tests -count=1`
 - **关键断言**：specrelay 不再保留外置子代理 runner、member artifact、fan-in 和 parallel QA gate 边界
 - **剩余风险**：静态断言不穷举所有历史命名，代码审查仍需关注死代码残留
 
@@ -865,7 +865,7 @@
 - **且** 新 run 不创建 `runs/<run-id>/prompts/` 目录
 - **当** 用户恢复该 run
 - **则** 系统优先使用 `prompt-snapshot.yaml` 中的 run 快照
-- **且** 不重新读取当前 `oz-flow.yaml`、`~/oz-flow.yaml`、`legacy prompt dir` 或 `~/legacy prompt dir`
+- **且** 不重新读取当前 `specrelay-flow.yaml`、`~/specrelay-flow.yaml`、`legacy prompt dir` 或 `~/legacy prompt dir`
 - **且** 当 `prompt-snapshot.yaml` 缺失时，系统必须报错而不是回退当前配置或历史 prompt 文件
 
 #### 场景：历史 sealed run 旧写作阶段快照失败关闭
@@ -1028,10 +1028,10 @@
 #### 场景：恢复后配置文件已修改
 
 - **当** sealed run 已创建
-- **且** 用户修改仓库根目录 `oz-flow.yaml`
+- **且** 用户修改仓库根目录 `specrelay-flow.yaml`
 - **且** 用户恢复未完成 run
 - **则** 系统使用 `state.json` 中的 workflow config 快照
-- **且** 不使用修改后的 `oz-flow.yaml`
+- **且** 不使用修改后的 `specrelay-flow.yaml`
 
 ### 需求：已有配置和 run 快照兼容
 
@@ -1039,7 +1039,7 @@
 
 #### 场景：已有用户自定义 prompt
 
-- **给定** 仓库 `oz-flow.yaml` 已配置自定义 `prompts.review`
+- **给定** 仓库 `specrelay-flow.yaml` 已配置自定义 `prompts.review`
 - **当** 用户启动新的 run
 - **则** 系统继续使用用户自定义 review prompt
 - **且** 不自动用新的内置模板覆盖用户配置
@@ -2303,11 +2303,11 @@
 #### 场景：配置命令写入预期文件
 
 - **当** 用户在临时 git 仓库中运行 `specrelay flow config`
-- **则** 仓库根目录必须生成 `oz-flow.yaml`
+- **则** 仓库根目录必须生成 `specrelay-flow.yaml`
 - **且** 配置内容必须包含默认 workflow、validation 和 prompts 设置
 - **且** 不创建 legacy repo dir
 - **当** 用户在非 git 目录运行 `specrelay flow config --global`
-- **则** 用户主目录必须生成 `~/oz-flow.yaml`
+- **则** 用户主目录必须生成 `~/specrelay-flow.yaml`
 - **且** 不创建 legacy home dir
 - **且** 后续 prompt 读取必须证明仓库 YAML 优先于全局 YAML，并忽略旧 `legacy prompt dir`
 
@@ -2391,7 +2391,7 @@
 
 - **当** 扫描 `tests/app/` 目录
 - **则** 不存在 `*.gotest` 迁移测试输入
-- **且** `tests/specs`、`tests/app` 和 `internal/app` 不得引用 `.gotest`、`OZ_MIGRATED_APP_RUN` 或 `migrated_app_suite`
+- **且** `tests/specs`、`tests/app` 和 `internal/app` 不得引用 `.gotest`、`SPECRELAY_MIGRATED_APP_RUN` 或 `migrated_app_suite`
 - **且** `tests/app/migrated_app_suite_test.go` 必须删除
 - **且** 根目录 `tests/` 下存在可运行的业务测试入口
 - **且** `go test ./...` 必须通过
@@ -2428,7 +2428,7 @@
 #### 场景：后续重构拥有稳定测试基线
 
 - **当** 根测试门禁完成
-- **则** `go test ./internal/app ./internal/ozcli ./cmd/specrelay ./tests` 必须通过
+- **则** `go test ./internal/app ./internal/specrelaycli ./cmd/specrelay ./tests` 必须通过
 - **且** 该结果不能依赖删除根门禁或跳过真实业务断言
 - **测试**：`tests/specs/codex-workflow-cli/test_root_test_layout_contract.sh`
 - **关键断言**：核心 app、specrelay CLI 和根测试包可单独证明当前基线可用
@@ -2453,7 +2453,7 @@
 
 - **当** 用户查看 README、当前规格、prompt/profile 模板、发布门禁、规格测试、帮助、默认配置、graph、status 或 engine 参数错误输出
 - **则** 这些用户可见面不得出现内部 engine 名称、旧调度器合同、旧命令行产品面、旧产品环境变量或已移除后端合同
-- **且** 默认生成的 `oz-flow.yaml` 不得包含用户需要选择的 `engine` 字段
+- **且** 默认生成的 `specrelay-flow.yaml` 不得包含用户需要选择的 `engine` 字段
 - **测试**：`tests/specs/codex-workflow-cli/test_user_visible_surface_cleanup_contract.sh`
 
 #### 场景：根目录历史测试层退出活跃维护面
@@ -2466,14 +2466,14 @@
 
 ### 需求：唯一默认工作流配置内嵌在 Go 中
 
-系统必须仅提供一份内嵌在 Go 源码中的默认 `oz-flow.yaml` 配置；不得保留 profile 模板目录、多 profile CLI 参数或 MADA profile。
+系统必须仅提供一份内嵌在 Go 源码中的默认 `specrelay-flow.yaml` 配置；不得保留 profile 模板目录、多 profile CLI 参数或 MADA profile。
 
 #### 场景：默认配置生成并可加载
 
 - **给定** 当前仓库源码
 - **当** 用户运行 `specrelay flow config` 或系统未发现配置文件
 - **则** 系统必须使用同一份内嵌默认配置
-- **并且** `specrelay flow config` 必须生成包含 planning、execution、repair、qa 和 archive 阶段及内嵌 prompts 的标准 `oz-flow.yaml`
+- **并且** `specrelay flow config` 必须生成包含 planning、execution、repair、qa 和 archive 阶段及内嵌 prompts 的标准 `specrelay-flow.yaml`
 - **并且** 配置不得包含 `parallel`、`subagents`、`subagent_guard` 或 `stages.*.before`
 - **并且** `specrelay flow config [--global]` 以外的参数必须返回用法错误
 - **并且** 仓库不得包含 `profiles-template/` 目录
@@ -2574,15 +2574,15 @@ review 和 QA prompt 必须把 scope 分类作为执行规则写清楚，避免 
 
 #### 场景：命令、拓扑和状态视图边界收敛且 CLI 行为保持稳定
 
-- **给定** 仓库内真实 `internal/app`、`internal/ozcli` 和 `tests` 生产代码
+- **给定** 仓库内真实 `internal/app`、`internal/specrelaycli` 和 `tests` 生产代码
 - **当** 维护者运行 flow 边界收敛合同测试
 - **则** `internal/app/flow_command_registry.go` 必须定义命令 registry 结构或查询入口
 - **并且** `internal/app/workflow_topology.go` 必须成为阶段映射及旧并行字段拒绝所需的兼容边界
 - **并且** graph/config/status 关键文件不得继续直接硬编码 `planning_context`、`implementation_context`、`before_execution`、`before_review`、`before_qa` 这些映射分支
 - **并且** 公共 status/progress 入口不得直接调用 legacy `stageChecklistLines` 系列函数
-- **并且** `go test ./internal/app ./internal/ozcli ./tests -count=1` 必须通过
+- **并且** `go test ./internal/app ./internal/specrelaycli ./tests -count=1` 必须通过
 - **测试**：`tests/specs/codex-workflow-cli/test_flow_boundary_convergence_contract.sh`
-- **真实数据来源**：当前仓库 `internal/app`、`internal/ozcli`、`tests` 生产代码和 Go 回归测试
+- **真实数据来源**：当前仓库 `internal/app`、`internal/specrelaycli`、`tests` 生产代码和 Go 回归测试
 - **入口路径**：shell 合同测试从仓库根目录执行
 - **关键断言**：命令 registry、workflow topology、公共 status view 三个边界已建立，真实 Go 命令面和状态回归保持稳定
 - **剩余风险**：该场景不逐个验证所有历史 shell 合同；执行阶段应根据改动影响面补跑 status/watch、graph、固定子代理拆除和 command dispatch 相关 specs

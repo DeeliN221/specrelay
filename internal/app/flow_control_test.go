@@ -154,7 +154,7 @@ func TestLoopCommandSkipsDuplicateWorker(t *testing.T) {
 // TestLoopArchivesFailedBatchAndStartsContinuation verifies loop continues from unfinished active changes.
 func TestLoopArchivesFailedBatchAndStartsContinuation(t *testing.T) {
 	repo := gitRepo(t)
-	installFlowControlFakeOz(t)
+	installFlowControlFakeSpecrelay(t)
 	for _, name := range []string{"2-b", "3-c"} {
 		writeFlowControlChange(t, repo, name)
 	}
@@ -234,7 +234,7 @@ func TestLoopArchivesFailedBatchAndStartsContinuation(t *testing.T) {
 // TestLoopStopsOnAcceptanceContractBlock verifies hard acceptance gates are not retried automatically.
 func TestLoopStopsOnAcceptanceContractBlock(t *testing.T) {
 	repo := gitRepo(t)
-	installFlowControlFakeOz(t)
+	installFlowControlFakeSpecrelay(t)
 	const changeName = "2-b"
 	const runID = "acceptance-blocked-run"
 	const batchID = "acceptance-blocked-batch"
@@ -272,7 +272,7 @@ func TestLoopStopsOnAcceptanceContractBlock(t *testing.T) {
 // TestLoopStopsAfterRepeatedFailure verifies one automatic retry is the limit for a stable failure.
 func TestLoopStopsAfterRepeatedFailure(t *testing.T) {
 	repo := gitRepo(t)
-	installFlowControlFakeOz(t)
+	installFlowControlFakeSpecrelay(t)
 	const changeName = "2-b"
 	const previousBatchID = "20260617T034000.000000000Z"
 	const currentBatchID = "20260617T034100.000000000Z"
@@ -364,7 +364,7 @@ func TestLoopFailsBatchOwnedRunWhenBatchHeartbeatIsStale(t *testing.T) {
 // TestLoopReclaimsStaleLockedRun verifies loop archives an orphan before continuing.
 func TestLoopReclaimsStaleLockedRun(t *testing.T) {
 	repo := gitRepo(t)
-	installFlowControlFakeOz(t)
+	installFlowControlFakeSpecrelay(t)
 	const changeName = "1-a"
 	const runID = "stale-locked-run"
 	const batchID = "stale-locked-batch"
@@ -447,7 +447,7 @@ func TestAcquireLoopWorkerLockAllowsOneOwner(t *testing.T) {
 // TestLoopStartsActiveChangesAfterCompletedBatch verifies done history does not hide active proposals.
 func TestLoopStartsActiveChangesAfterCompletedBatch(t *testing.T) {
 	repo := gitRepo(t)
-	installFlowControlFakeOz(t)
+	installFlowControlFakeSpecrelay(t)
 	for _, name := range []string{"1-a", "2-b"} {
 		writeFlowControlChange(t, repo, name)
 	}
@@ -550,37 +550,37 @@ func writeFlowControlChange(t *testing.T, repo, name string) {
 	}
 }
 
-// installFlowControlFakeOz points ListChanges at this test process.
-func installFlowControlFakeOz(t *testing.T) {
+// installFlowControlFakeSpecrelay points ListChanges at this test process.
+func installFlowControlFakeSpecrelay(t *testing.T) {
 	t.Helper()
-	previous := ozCommand
-	previousPrefix := ozCommandPrefix
-	ozCommand = os.Args[0]
-	ozCommandPrefix = []string{"-test.run=TestFlowControlFakeOzCommand", "--"}
-	t.Setenv("OZ_FLOW_CONTROL_FAKE_OZ", "1")
+	previous := specrelayCommand
+	previousPrefix := specrelayCommandPrefix
+	specrelayCommand = os.Args[0]
+	specrelayCommandPrefix = []string{"-test.run=TestFlowControlFakeSpecrelayCommand", "--"}
+	t.Setenv("SPECRELAY_FLOW_CONTROL_FAKE_SPECRELAY", "1")
 	t.Cleanup(func() {
-		ozCommand = previous
-		ozCommandPrefix = previousPrefix
+		specrelayCommand = previous
+		specrelayCommandPrefix = previousPrefix
 	})
 }
 
-// TestFlowControlFakeOzCommand serves the small specrelay JSON surface used by loop tests.
-func TestFlowControlFakeOzCommand(t *testing.T) {
-	if os.Getenv("OZ_FLOW_CONTROL_FAKE_OZ") != "1" {
+// TestFlowControlFakeSpecrelayCommand serves the small specrelay JSON surface used by loop tests.
+func TestFlowControlFakeSpecrelayCommand(t *testing.T) {
+	if os.Getenv("SPECRELAY_FLOW_CONTROL_FAKE_SPECRELAY") != "1" {
 		return
 	}
 	args := os.Args
 	for i, arg := range args {
 		if arg == "--" {
-			flowControlFakeOzMain(args[i+1:])
+			flowControlFakeSpecrelayMain(args[i+1:])
 			os.Exit(0)
 		}
 	}
 	os.Exit(1)
 }
 
-// flowControlFakeOzMain implements list and validate for temporary test repositories.
-func flowControlFakeOzMain(args []string) {
+// flowControlFakeSpecrelayMain implements list and validate for temporary test repositories.
+func flowControlFakeSpecrelayMain(args []string) {
 	switch {
 	case len(args) == 2 && args[0] == "list" && args[1] == "--json":
 		names, err := flowControlActiveChangeNames(".")

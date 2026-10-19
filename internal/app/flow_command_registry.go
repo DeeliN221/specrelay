@@ -79,7 +79,7 @@ func removedFlowInitCommand(context.Context, []string, io.Writer, string, *Engin
 }
 
 func removedFlowInstallCommand(context.Context, []string, io.Writer, string, *Engine) error {
-	return fmt.Errorf("specrelay flow install has been removed; prompts are embedded in oz-flow.yaml; use specrelay flow config or specrelay flow config --global")
+	return fmt.Errorf("specrelay flow install has been removed; prompts are embedded in specrelay-flow.yaml; use specrelay flow config or specrelay flow config --global")
 }
 
 func handleFlowContractCommand(ctx context.Context, args []string, stdout io.Writer, repo string, engine *Engine) error {

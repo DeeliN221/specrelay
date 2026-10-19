@@ -1,4 +1,4 @@
-package ozcli
+package specrelaycli
 
 import (
 	"os"

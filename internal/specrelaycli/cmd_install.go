@@ -1,5 +1,5 @@
-// Package ozcli implements the standalone specrelay skill installation command.
-package ozcli
+// Package specrelaycli implements the standalone specrelay skill installation command.
+package specrelaycli
 
 import (
 	"errors"

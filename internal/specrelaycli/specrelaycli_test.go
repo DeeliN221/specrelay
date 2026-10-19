@@ -1,5 +1,5 @@
-// Package ozcli tests the user-visible specrelay CLI workflow with real filesystem projects.
-package ozcli
+// Package specrelaycli tests the user-visible specrelay CLI workflow with real filesystem projects.
+package specrelaycli
 
 import (
 	"bytes"
@@ -201,8 +201,8 @@ func writeValidChange(t *testing.T, project, change string) {
 	}
 }
 
-func TestHelpMentionsOzWithoutNodeTooling(t *testing.T) {
-	// TestHelpMentionsOzWithoutNodeTooling covers the reduced command surface.
+func TestHelpMentionsSpecrelayWithoutNodeTooling(t *testing.T) {
+	// TestHelpMentionsSpecrelayWithoutNodeTooling covers the reduced command surface.
 	result := runCLI(t, newProject(t), "--help")
 	if result.code != 0 {
 		t.Fatalf("help failed: %s", result.stderr)

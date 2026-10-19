@@ -441,7 +441,7 @@ func printHelp(stdout io.Writer) {
 	fmt.Fprintln(stdout, "Interactive commands:")
 	fmt.Fprintln(stdout, "  specrelay flow                         Plan, select an active change, or resume a run")
 	fmt.Fprintln(stdout, "  specrelay flow clean [--agent-sessions] [--dry-run] [--json] Clean failed or invalid runtime state for this project")
-	fmt.Fprintln(stdout, "  specrelay flow config [--global] Write repository oz-flow.yaml or user ~/oz-flow.yaml")
+	fmt.Fprintln(stdout, "  specrelay flow config [--global] Write repository specrelay-flow.yaml or user ~/specrelay-flow.yaml")
 	fmt.Fprintln(stdout, "  specrelay flow run | specrelay flow r              Select all active changes and start the task queue")
 	fmt.Fprintln(stdout, "  specrelay flow status                  Print progress of the latest run")
 	fmt.Fprintln(stdout, "  specrelay flow restart [-bN|-wN]       Restart the latest failed or interrupted batch/workflow")
@@ -471,10 +471,10 @@ func printHelp(stdout io.Writer) {
 	fmt.Fprintln(stdout, "  specrelay flow batch append --batch-id <batch-id> --change <change-name> --json")
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Files:")
-	fmt.Fprintln(stdout, "  oz-flow.yaml                    Repository workflow configuration; create with specrelay flow config")
-	fmt.Fprintln(stdout, "  ~/oz-flow.yaml                  User-level workflow defaults")
+	fmt.Fprintln(stdout, "  specrelay-flow.yaml                    Repository workflow configuration; create with specrelay flow config")
+	fmt.Fprintln(stdout, "  ~/specrelay-flow.yaml                  User-level workflow defaults")
 	fmt.Fprintln(stdout, "  docs/changes/<name>/       active specrelay changes")
-	fmt.Fprintln(stdout, "  ${XDG_STATE_HOME:-~/.local/state}/oz/flow/repos/<repo-key>/runs/<run-id>/")
+	fmt.Fprintln(stdout, "  ${XDG_STATE_HOME:-~/.local/state}/specrelay/flow/repos/<repo-key>/runs/<run-id>/")
 	fmt.Fprintln(stdout, "                             Sealed run state, prompt snapshots, and artifacts")
 }
 

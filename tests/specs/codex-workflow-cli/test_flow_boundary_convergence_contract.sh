@@ -66,6 +66,6 @@ reject_pattern 'stageChecklistLines|stageChecklistLinesWithParallel|stageCheckli
   internal/app/status_render.go
 
 note "Run real Go command and status regressions"
-go test ./internal/app ./internal/ozcli ./tests -count=1 2>&1 | tee -a "$log"
+go test ./internal/app ./internal/specrelaycli ./tests -count=1 2>&1 | tee -a "$log"
 
 note "PASS: flow-boundary-convergence-contract"

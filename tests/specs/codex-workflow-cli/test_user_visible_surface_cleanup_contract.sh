@@ -67,8 +67,8 @@ scan_forbidden "旧 WO_* 产品变量不得进入活跃维护面" '\bWO_[A-Z0-9_
 scan_forbidden "legacy 后端不得进入默认配置、文档或模板" 'legacy-agent|LegacyAgent|opencode|OpenCode|open""code' README.md docs/specs prompts-template .github/workflows
 
 note "Build real specrelay and check help, configuration, graph, status and diagnostics"
-OZ_BIN="$TMP/specrelay"
-go build -o "$OZ_BIN" ./cmd/specrelay >>"$LOG" 2>&1
+SPECRELAY_BIN="$TMP/specrelay"
+go build -o "$SPECRELAY_BIN" ./cmd/specrelay >>"$LOG" 2>&1
 
 PROJECT="$TMP/project"
 mkdir -p "$PROJECT/docs/changes/demo"
@@ -82,23 +82,23 @@ mkdir -p "$PROJECT/docs/changes/demo"
   git commit -qm init
 )
 
-"$OZ_BIN" flow --help >"$RESULT_DIR/flow-help.txt" 2>&1
+"$SPECRELAY_BIN" flow --help >"$RESULT_DIR/flow-help.txt" 2>&1
 assert_no_internal_engine_text "$RESULT_DIR/flow-help.txt"
 (
   cd "$PROJECT"
-  "$OZ_BIN" flow config >"$RESULT_DIR/flow-config.out" 2>&1
+  "$SPECRELAY_BIN" flow config >"$RESULT_DIR/flow-config.out" 2>&1
 )
 assert_no_internal_engine_text "$RESULT_DIR/flow-config.out"
-assert_no_internal_engine_text "$PROJECT/oz-flow.yaml"
-if rg -n '^engine:' "$PROJECT/oz-flow.yaml" >>"$LOG" 2>&1; then
-  fail "Default oz-flow.yaml must not expose an engine field"
+assert_no_internal_engine_text "$PROJECT/specrelay-flow.yaml"
+if rg -n '^engine:' "$PROJECT/specrelay-flow.yaml" >>"$LOG" 2>&1; then
+  fail "Default specrelay-flow.yaml must not expose an engine field"
 fi
 
 (
   cd "$PROJECT"
-  "$OZ_BIN" flow graph --change demo --format json >"$RESULT_DIR/graph.json" 2>"$RESULT_DIR/graph-json.err"
-  "$OZ_BIN" flow graph --change demo --format mermaid >"$RESULT_DIR/graph.mmd" 2>"$RESULT_DIR/graph-mermaid.err"
-  "$OZ_BIN" flow status >"$RESULT_DIR/status.txt" 2>&1 || true
+  "$SPECRELAY_BIN" flow graph --change demo --format json >"$RESULT_DIR/graph.json" 2>"$RESULT_DIR/graph-json.err"
+  "$SPECRELAY_BIN" flow graph --change demo --format mermaid >"$RESULT_DIR/graph.mmd" 2>"$RESULT_DIR/graph-mermaid.err"
+  "$SPECRELAY_BIN" flow status >"$RESULT_DIR/status.txt" 2>&1 || true
 )
 assert_no_internal_engine_text "$RESULT_DIR/graph.json"
 assert_no_internal_engine_text "$RESULT_DIR/graph-json.err"
@@ -109,7 +109,7 @@ assert_no_internal_engine_text "$RESULT_DIR/status.txt"
 set +e
 (
   cd "$PROJECT"
-  "$OZ_BIN" flow run --change demo --engine unknown --json
+  "$SPECRELAY_BIN" flow run --change demo --engine unknown --json
 ) >"$RESULT_DIR/run-engine-unknown.out" 2>"$RESULT_DIR/run-engine-unknown.err"
 run_code=$?
 set -e

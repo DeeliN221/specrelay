@@ -17,7 +17,7 @@ func dispatchRepositoryCommand(ctx context.Context, args []string, stdout io.Wri
 	case "init":
 		return fmt.Errorf("specrelay flow init has been removed; use specrelay flow config")
 	case "install":
-		return fmt.Errorf("specrelay flow install has been removed; prompts are embedded in oz-flow.yaml; use specrelay flow config or specrelay flow config --global")
+		return fmt.Errorf("specrelay flow install has been removed; prompts are embedded in specrelay-flow.yaml; use specrelay flow config or specrelay flow config --global")
 	case "contract":
 		if !hasFlag(args[1:], "--json") {
 			return fmt.Errorf("Usage: specrelay flow contract --json")

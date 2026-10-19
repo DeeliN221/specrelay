@@ -15,7 +15,7 @@ import (
 func TestQualityValidationKindsDoNotOverwrite(t *testing.T) {
 	repo := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", filepath.Join(repo, "state"))
-	installGateStateFakeOz(t, true)
+	installGateStateFakeSpecrelay(t, true)
 	state := qualityLoopState("audit_1")
 	state.RunID = "quality-validation-kind-isolation"
 
@@ -51,7 +51,7 @@ func TestQualityValidationKindsDoNotOverwrite(t *testing.T) {
 func TestQualityValidationReservationSurvivesRestart(t *testing.T) {
 	repo := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", filepath.Join(repo, "state"))
-	installGateStateFakeOz(t, true)
+	installGateStateFakeSpecrelay(t, true)
 	state := qualityLoopState("audit_1")
 	state.RunID = "quality-validation-reservation"
 	if err := saveState(repo, state); err != nil {
@@ -116,7 +116,7 @@ func TestQualityValidationReservationSurvivesRestart(t *testing.T) {
 func TestQualityValidationArtifactKindMatchesFailure(t *testing.T) {
 	repo := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", filepath.Join(repo, "state"))
-	installGateStateFakeOz(t, false)
+	installGateStateFakeSpecrelay(t, false)
 	state := qualityLoopState("audit_1")
 	state.RunID = "quality-validation-kind"
 
@@ -146,7 +146,7 @@ func TestQualityValidationArtifactKindMatchesFailure(t *testing.T) {
 func TestQualityValidationOutputChangeCountsAsProgress(t *testing.T) {
 	repo := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", filepath.Join(repo, "state"))
-	installGateStateFakeOz(t, true)
+	installGateStateFakeSpecrelay(t, true)
 	outputPath := filepath.Join(repo, "validation-output.txt")
 	if err := os.WriteFile(outputPath, []byte("failure-a\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -199,7 +199,7 @@ func TestQualityValidationOutputChangeCountsAsProgress(t *testing.T) {
 func TestLegacyValidationArtifactPathRemainsCompatible(t *testing.T) {
 	repo := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", filepath.Join(repo, "state"))
-	installGateStateFakeOz(t, true)
+	installGateStateFakeSpecrelay(t, true)
 	state := qualityLoopState("repair_1")
 	state.RunID = "legacy-validation-path"
 	state.Workflow.Generation = repairWorkflowGeneration

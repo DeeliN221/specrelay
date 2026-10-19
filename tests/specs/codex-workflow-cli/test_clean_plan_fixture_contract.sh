@@ -7,7 +7,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 RESULT_DIR="$ROOT/test-results/clean-plan-fixture"
 LOG="$RESULT_DIR/contract.log"
 TMP_DIR="$RESULT_DIR/tmp"
-OZ_BIN="$RESULT_DIR/specrelay"
+SPECRELAY_BIN="$RESULT_DIR/specrelay"
 
 rm -rf "$TMP_DIR"
 mkdir -p "$RESULT_DIR" "$TMP_DIR"
@@ -39,7 +39,7 @@ assert_rg 'type CleanPlan|func BuildCleanPlan|func ApplyCleanPlan' "$ROOT/intern
 assert_rg 'workflowFixture|newWorkflowFixture|fakeWorkflowRunner' "$ROOT/internal/app" "Missing shared workflow test fixtures"
 
 note "Build the real specrelay executable"
-(cd "$ROOT" && go build -o "$OZ_BIN" ./cmd/specrelay) >>"$LOG" 2>&1 || fail "go build ./cmd/specrelay failed"
+(cd "$ROOT" && go build -o "$SPECRELAY_BIN" ./cmd/specrelay) >>"$LOG" 2>&1 || fail "go build ./cmd/specrelay failed"
 
 PROJECT="$TMP_DIR/project"
 STATE_HOME="$TMP_DIR/state"
@@ -65,7 +65,7 @@ print(f"{name}-{hashlib.sha1(path.encode()).hexdigest()[:10]}")
 PY
 )"
 
-RUN_DIR="$STATE_HOME/oz/flow/repos/$repo_key/runs/run-failed"
+RUN_DIR="$STATE_HOME/specrelay/flow/repos/$repo_key/runs/run-failed"
 mkdir -p "$RUN_DIR"
 cat >"$RUN_DIR/state.json" <<'EOF'
 {
@@ -83,14 +83,14 @@ cat >"$RUN_DIR/state.json" <<'EOF'
 EOF
 
 note "Run JSON dry-run and verify planning without deletion"
-XDG_STATE_HOME="$STATE_HOME" "$OZ_BIN" flow clean --dry-run --json >"$RESULT_DIR/clean-plan.json" 2>>"$LOG" || fail "specrelay flow clean --dry-run --json must succeed"
+XDG_STATE_HOME="$STATE_HOME" "$SPECRELAY_BIN" flow clean --dry-run --json >"$RESULT_DIR/clean-plan.json" 2>>"$LOG" || fail "specrelay flow clean --dry-run --json must succeed"
 [[ -d "$RUN_DIR" ]] || fail "Dry-run must not delete the failed run directory"
 if ! rg -n 'run-failed|delete|would_delete|clean_plan|dry_run' "$RESULT_DIR/clean-plan.json" >>"$LOG" 2>&1; then
   fail "Dry-run JSON lacks the failed-run deletion plan"
 fi
 
 note "Apply clean and verify deletion of the same failed run"
-XDG_STATE_HOME="$STATE_HOME" "$OZ_BIN" flow clean >>"$LOG" 2>&1 || fail "specrelay flow clean must apply the plan successfully"
+XDG_STATE_HOME="$STATE_HOME" "$SPECRELAY_BIN" flow clean >>"$LOG" 2>&1 || fail "specrelay flow clean must apply the plan successfully"
 [[ ! -e "$RUN_DIR" ]] || fail "Failed run directory remains after clean"
 
 note "Run internal/app regressions"

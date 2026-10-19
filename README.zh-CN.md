@@ -75,7 +75,7 @@ flowchart LR
     subgraph 提案与配置
       I["specrelay install --global"] --> J["技能装进 ~/.agents/skills"]
       K["specrelay create"] --> L["创建新变更提案"]
-      M["specrelay flow config"] --> N["oz-flow.yaml 写入"]
+      M["specrelay flow config"] --> N["specrelay-flow.yaml 写入"]
     end
     subgraph 自动化执行
       X["specrelay flow run-*"] --> Y["执行/修复/验收"]
@@ -98,15 +98,15 @@ specrelay flow run
 specrelay flow watch
 ```
 
-`oz-flow.yaml` 的配置合并顺序是：
+`specrelay-flow.yaml` 的配置合并顺序是：
 
 ```text
-内置默认 -> ~/oz-flow.yaml -> 仓库 oz-flow.yaml -> 本次 run 快照
+内置默认 -> ~/specrelay-flow.yaml -> 仓库 specrelay-flow.yaml -> 本次 run 快照
 ```
 
-`specrelay flow config` 只生成这一份内嵌默认配置，并且仅支持可选的 `--global`。不再提供 profile、`--profile` 或 `--list-profiles`；需要差异化行为时，直接编辑生成的 `oz-flow.yaml`。
+`specrelay flow config` 只生成这一份内嵌默认配置，并且仅支持可选的 `--global`。不再提供 profile、`--profile` 或 `--list-profiles`；需要差异化行为时，直接编辑生成的 `specrelay-flow.yaml`。
 
-项目需要执行额外检查时，可以在 `oz-flow.yaml` 中配置验证命令：
+项目需要执行额外检查时，可以在 `specrelay-flow.yaml` 中配置验证命令：
 
 ```yaml
 max_audit_iterations: 3
@@ -176,4 +176,4 @@ specrelay 内置技能（`specrelay-plan`、`specrelay-create`、`specrelay-exec
 
 ## 局限性
 
-如果只是一些轻量更改，比如前端样式的微调，没有必要硬套用这个工具。oz更适合中大规模的变更，据此什么样的变更算大规模，这个见仁见智，也和执行任务的具体agent（codex/pi/agy/claude 等）的智能程度有关
+如果只是一些轻量更改，比如前端样式的微调，没有必要硬套用这个工具。specrelay更适合中大规模的变更，据此什么样的变更算大规模，这个见仁见智，也和执行任务的具体agent（codex/pi/agy/claude 等）的智能程度有关

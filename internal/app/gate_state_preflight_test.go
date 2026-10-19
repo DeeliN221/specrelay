@@ -33,11 +33,11 @@ func TestRootArtifactGateFailureUsesArtifactGateState(t *testing.T) {
 	}
 }
 
-// TestRootExecutionRunsOzValidateAsRetryableGate proves specrelay validate failures return to executor repair.
-func TestRootExecutionRunsOzValidateAsRetryableGate(t *testing.T) {
+// TestRootExecutionRunsSpecrelayValidateAsRetryableGate proves specrelay validate failures return to executor repair.
+func TestRootExecutionRunsSpecrelayValidateAsRetryableGate(t *testing.T) {
 	repo := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", filepath.Join(repo, "state"))
-	installGateStateFakeOz(t, false)
+	installGateStateFakeSpecrelay(t, false)
 	state := State{
 		RunID:      "run-change-validate",
 		ChangeName: "19-gate-state-preflight",
@@ -76,7 +76,7 @@ func TestRootExecutionRunsOzValidateAsRetryableGate(t *testing.T) {
 func TestLegacySealedTaskValidationCompatibility(t *testing.T) {
 	repo := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", filepath.Join(repo, "state"))
-	installGateStateFakeOzMode(t, "task")
+	installGateStateFakeSpecrelayMode(t, "task")
 	engine := NewEngine(repo, nil)
 	legacy := State{
 		RunID:      "legacy-task-run",
@@ -106,7 +106,7 @@ func TestLegacySealedTaskValidationCompatibility(t *testing.T) {
 		t.Fatal("current sealed run must not bypass active task.md prohibition")
 	}
 
-	installGateStateFakeOzMode(t, "task-and-other")
+	installGateStateFakeSpecrelayMode(t, "task-and-other")
 	legacy.RunID = "legacy-task-with-other-error"
 	legacy.Validation = map[string]StageValidationState{}
 	legacy.Stages = map[string]string{}
@@ -153,31 +153,31 @@ func TestRootAcceptancePreflightReturnsEvidenceWithoutProducerToExecutor(t *test
 	}
 }
 
-func installGateStateFakeOz(t *testing.T, valid bool) {
+func installGateStateFakeSpecrelay(t *testing.T, valid bool) {
 	t.Helper()
 	mode := "invalid"
 	if valid {
 		mode = "valid"
 	}
-	installGateStateFakeOzMode(t, mode)
+	installGateStateFakeSpecrelayMode(t, mode)
 }
 
-func installGateStateFakeOzMode(t *testing.T, mode string) {
+func installGateStateFakeSpecrelayMode(t *testing.T, mode string) {
 	t.Helper()
-	previous := ozCommand
-	previousPrefix := ozCommandPrefix
-	ozCommand = os.Args[0]
-	ozCommandPrefix = []string{"-test.run=TestGateStateFakeOzCommand", "--"}
-	t.Setenv("OZ_GATE_STATE_FAKE_VALIDATE", mode)
+	previous := specrelayCommand
+	previousPrefix := specrelayCommandPrefix
+	specrelayCommand = os.Args[0]
+	specrelayCommandPrefix = []string{"-test.run=TestGateStateFakeSpecrelayCommand", "--"}
+	t.Setenv("SPECRELAY_GATE_STATE_FAKE_VALIDATE", mode)
 	t.Cleanup(func() {
-		ozCommand = previous
-		ozCommandPrefix = previousPrefix
+		specrelayCommand = previous
+		specrelayCommandPrefix = previousPrefix
 	})
 }
 
-// TestGateStateFakeOzCommand serves specrelay validate JSON to validation gate subprocesses.
-func TestGateStateFakeOzCommand(t *testing.T) {
-	mode := os.Getenv("OZ_GATE_STATE_FAKE_VALIDATE")
+// TestGateStateFakeSpecrelayCommand serves specrelay validate JSON to validation gate subprocesses.
+func TestGateStateFakeSpecrelayCommand(t *testing.T) {
+	mode := os.Getenv("SPECRELAY_GATE_STATE_FAKE_VALIDATE")
 	if mode == "" {
 		return
 	}

@@ -99,8 +99,8 @@ func requireOmits(t *testing.T, prompt string, rejects ...string) {
 	}
 }
 
-// TestChangeEightExecutionPromptDelegatesToOzExec verifies the execution prompt stays as an entry point.
-func TestChangeEightExecutionPromptDelegatesToOzExec(t *testing.T) {
+// TestChangeEightExecutionPromptDelegatesToSpecrelayExec verifies the execution prompt stays as an entry point.
+func TestChangeEightExecutionPromptDelegatesToSpecrelayExec(t *testing.T) {
 	prompt := renderChangeEightPrompt(t)
 	requireContains(t, prompt,
 		"specrelay-exec",
@@ -117,8 +117,8 @@ func TestChangeEightExecutionPromptDelegatesToOzExec(t *testing.T) {
 	)
 }
 
-// TestChangeEightOzExecSkillMatchesPromptContract verifies the invoked skill does not reintroduce full-document defaults.
-func TestChangeEightOzExecSkillMatchesPromptContract(t *testing.T) {
+// TestChangeEightSpecrelayExecSkillMatchesPromptContract verifies the invoked skill does not reintroduce full-document defaults.
+func TestChangeEightSpecrelayExecSkillMatchesPromptContract(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "skills", "specrelay-exec", "SKILL.md"))
 	if err != nil {
 		t.Fatal(err)
@@ -136,8 +136,8 @@ func TestChangeEightOzExecSkillMatchesPromptContract(t *testing.T) {
 	)
 }
 
-// TestChangeEightOzCreateSkillCreatesBrief verifies new proposals include the active-change brief required by validate.
-func TestChangeEightOzCreateSkillCreatesBrief(t *testing.T) {
+// TestChangeEightSpecrelayCreateSkillCreatesBrief verifies new proposals include the active-change brief required by validate.
+func TestChangeEightSpecrelayCreateSkillCreatesBrief(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "skills", "specrelay-create", "SKILL.md"))
 	if err != nil {
 		t.Fatal(err)
@@ -156,5 +156,5 @@ GO
 
 (
   cd "$repo_root"
-  go test ./internal/app -run 'TestChangeEight(ExecutionPromptDelegatesToOzExec|OzExecSkillMatchesPromptContract|OzCreateSkillCreatesBrief)' -count=1
+  go test ./internal/app -run 'TestChangeEight(ExecutionPromptDelegatesToSpecrelayExec|SpecrelayExecSkillMatchesPromptContract|SpecrelayCreateSkillCreatesBrief)' -count=1
 ) | tee "$log"

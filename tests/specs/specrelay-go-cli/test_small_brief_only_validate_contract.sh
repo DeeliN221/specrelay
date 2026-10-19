@@ -6,12 +6,12 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 RESULT_DIR="$ROOT/test-results/specs/specrelay-go-cli"
 LOG="$RESULT_DIR/small-brief-only-validate-contract.log"
-OZ_BIN="$RESULT_DIR/specrelay-small-brief-only"
+SPECRELAY_BIN="$RESULT_DIR/specrelay-small-brief-only"
 TMP="$(mktemp -d)"
 
 mkdir -p "$RESULT_DIR"
 : >"$LOG"
-trap 'rm -rf "$TMP" "$OZ_BIN"' EXIT
+trap 'rm -rf "$TMP" "$SPECRELAY_BIN"' EXIT
 
 note() {
   # Record contract steps and output so failures remain reviewable.
@@ -118,7 +118,7 @@ MD
 cd "$ROOT"
 
 note "Build the real specrelay executable"
-go build -o "$OZ_BIN" ./cmd/specrelay 2>&1 | tee -a "$LOG"
+go build -o "$SPECRELAY_BIN" ./cmd/specrelay 2>&1 | tee -a "$LOG"
 
 note "Valid small brief-only proposals must pass validation"
 GOOD_PROJECT="$TMP/good"
@@ -127,7 +127,7 @@ init_project "$GOOD_PROJECT"
 write_small_change "$GOOD_PROJECT" "$GOOD_CHANGE" yes
 (
   cd "$GOOD_PROJECT"
-  "$OZ_BIN" validate "$GOOD_CHANGE" --json
+  "$SPECRELAY_BIN" validate "$GOOD_CHANGE" --json
 ) 2>&1 | tee -a "$LOG"
 
 note "Small proposals missing real tests must fail"
@@ -138,7 +138,7 @@ write_small_change "$BAD_PROJECT" "$BAD_CHANGE" no
 set +e
 (
   cd "$BAD_PROJECT"
-  "$OZ_BIN" validate "$BAD_CHANGE" --json
+  "$SPECRELAY_BIN" validate "$BAD_CHANGE" --json
 ) >"$TMP/bad.out" 2>"$TMP/bad.err"
 code=$?
 set -e
@@ -155,7 +155,7 @@ touch "$STANDARD_PROJECT/docs/changes/$STANDARD_CHANGE/proposal.md"
 set +e
 (
   cd "$STANDARD_PROJECT"
-  "$OZ_BIN" validate "$STANDARD_CHANGE" --json
+  "$SPECRELAY_BIN" validate "$STANDARD_CHANGE" --json
 ) >"$TMP/standard.out" 2>"$TMP/standard.err"
 code=$?
 set -e

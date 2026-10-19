@@ -49,7 +49,7 @@ func TestUserSelectedModelReachesCodexCommand(t *testing.T) {
     agent: codex
     model: user-selected-model
 `)
-	if err := os.WriteFile(filepath.Join(repo, "oz-flow.yaml"), body, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "specrelay-flow.yaml"), body, 0o644); err != nil {
 		t.Fatal(err)
 	}
 

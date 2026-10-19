@@ -27,9 +27,9 @@ trap cleanup EXIT
 rm -rf "$RESULT_DIR"
 mkdir -p "$RESULT_DIR"
 
-OZ_BIN="$TMP/wo"
+SPECRELAY_BIN="$TMP/wo"
 note "build real specrelay flow binary"
-(cd "$ROOT" && go build -o "$OZ_BIN" ./cmd/specrelay) >>"$RESULT_DIR/contract.log" 2>&1
+(cd "$ROOT" && go build -o "$SPECRELAY_BIN" ./cmd/specrelay) >>"$RESULT_DIR/contract.log" 2>&1
 
 FAKEBIN="$TMP/fakebin"
 mkdir -p "$FAKEBIN"
@@ -154,7 +154,7 @@ def repair_needs_more(path):
         "non_blocking_findings": [],
         "evidence": ["runtime evidence repaired in the same repairer session"],
         "checks": {
-            "oz_aligned": True,
+            "specrelay_aligned": True,
             "tests_meaningful": True,
             "implementation_scoped": True,
             "runtime_behavior_verified": True,
@@ -169,7 +169,7 @@ def repair_clean(path):
         "findings": [],
         "non_blocking_findings": [],
         "checks": {
-            "oz_aligned": True,
+            "specrelay_aligned": True,
             "tests_meaningful": True,
             "implementation_scoped": True,
             "runtime_behavior_verified": True,
@@ -379,7 +379,7 @@ cat >"$PROJECT/docs/changes/1-stage-artifact-retry/acceptance.json" <<'JSON'
 }
 JSON
 
-cat >"$PROJECT/oz-flow.yaml" <<'YAML'
+cat >"$PROJECT/specrelay-flow.yaml" <<'YAML'
 max_repair_iterations: 2
 validation:
   limit: 3
@@ -405,7 +405,7 @@ CODEX_CALL_LOG="$RESULT_DIR/codex-calls.jsonl" \
 XDG_STATE_HOME="$TMP/state" \
 HOME="$TMP/home" \
 PATH="$FAKEBIN:/usr/bin:/bin" \
-  bash -c 'cd "$1" && "$2" flow run --change "1-stage-artifact-retry" --json' _ "$PROJECT" "$OZ_BIN" >"$RESULT_DIR/run.jsonl" 2>"$RESULT_DIR/run.err"
+  bash -c 'cd "$1" && "$2" flow run --change "1-stage-artifact-retry" --json' _ "$PROJECT" "$SPECRELAY_BIN" >"$RESULT_DIR/run.jsonl" 2>"$RESULT_DIR/run.err"
 run_code=$?
 set -e
 cat "$RESULT_DIR/run.jsonl" >>"$RESULT_DIR/contract.log"

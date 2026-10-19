@@ -136,15 +136,15 @@ active 提案必须把实现步骤保留在执行器 Todo 或运行态中，不�
 ### 场景：standalone specrelay CLI 命令边界保持清晰
 
 - **当** 维护者调整 standalone `specrelay` CLI 的入口、安装、提案查询、校验或归档命令
-- **则** `internal/ozcli/cli.go`、`internal/ozcli/cmd_install.go`、`internal/ozcli/cmd_change.go`、`internal/ozcli/cmd_validate.go` 和 `internal/ozcli/cmd_archive.go` 必须作为独立边界文件存在
+- **则** `internal/specrelaycli/cli.go`、`internal/specrelaycli/cmd_install.go`、`internal/specrelaycli/cmd_change.go`、`internal/specrelaycli/cmd_validate.go` 和 `internal/specrelaycli/cmd_archive.go` 必须作为独立边界文件存在
 - **并且** `Main/run`、`installCmd/printInstallHelp`、`listCmd/createCmd/statusCmd`、`validateCmd/validateChange/validateAcceptanceFiles`、`archiveCmd` 必须分别落在对应职责文件
 - **并且** active 提案的 `task.md` 禁令只能由 validate 边界负责，archive 不得恢复任务清单完成度检查
-- **并且** `internal/ozcli/ozcli.go` 不得重新成为 700 行以上的混合职责文件
-- **并且** `internal/ozcli` Go 回归必须通过，证明拆分不改变现有 CLI 行为
+- **并且** `internal/specrelaycli/specrelaycli.go` 不得重新成为 700 行以上的混合职责文件
+- **并且** `internal/specrelaycli` Go 回归必须通过，证明拆分不改变现有 CLI 行为
 
 ### 场景：工作流配置解析边界保持清晰
 
-- **当** 维护者调整 `oz-flow.yaml` schema、内嵌默认配置、parallel 展开或 validation 配置解析
+- **当** 维护者调整 `specrelay-flow.yaml` schema、内嵌默认配置、parallel 展开或 validation 配置解析
 - **则** `internal/app/config.go`、`internal/app/config_schema.go`、`internal/app/config_parallel.go` 和 `internal/app/config_validation.go` 必须作为清晰的职责边界存在
 - **并且** `internal/app/config.go` 不得重新直接定义 schema input、parallel 展开或 validation 解析 helper；唯一默认 YAML 仅在该文件内嵌
 - **并且** 默认 tree config、legacy 字段拒绝和 parallel 配置合同必须继续通过，证明用户可见配置行为不变

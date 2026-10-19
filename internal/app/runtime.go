@@ -19,23 +19,23 @@ func runtimeRoot() (string, error) {
 // runtimeRootForGOOS resolves the state root for tests and platform-specific defaults.
 func runtimeRootForGOOS(goos string) (string, error) {
 	if xdg := os.Getenv("XDG_STATE_HOME"); xdg != "" {
-		return filepath.Join(xdg, "oz", "flow"), nil
+		return filepath.Join(xdg, "specrelay", "flow"), nil
 	}
 	if goos == "windows" {
 		if local := os.Getenv("LOCALAPPDATA"); local != "" {
-			return filepath.Join(local, "oz", "flow"), nil
+			return filepath.Join(local, "specrelay", "flow"), nil
 		}
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("resolve user home directory failed: %w", err)
 		}
-		return filepath.Join(home, ".local", "state", "oz", "flow"), nil
+		return filepath.Join(home, ".local", "state", "specrelay", "flow"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("resolve user home directory failed: %w", err)
 	}
-	return filepath.Join(home, ".local", "state", "oz", "flow"), nil
+	return filepath.Join(home, ".local", "state", "specrelay", "flow"), nil
 }
 
 // repoRuntimeDir returns the state directory reserved for one repository.

@@ -33,10 +33,10 @@ git -C "$project" commit -q -m initial
 note "specrelay flow config must generate defaults without fixed external subagents"
 (cd "$project" && "$wo" flow config) >"$tmp/config.out"
 cat "$tmp/config.out" >>"$log"
-cat "$project/oz-flow.yaml" >>"$log"
-grep -qF "repair:" "$project/oz-flow.yaml" || fail "oz-flow.yaml must configure the main repair stage"
-if rg -n 'parallel:|subagents:|subagent_guard:|before:' "$project/oz-flow.yaml" >>"$log"; then
-  fail "oz-flow.yaml must not reintroduce fixed external subagents"
+cat "$project/specrelay-flow.yaml" >>"$log"
+grep -qF "repair:" "$project/specrelay-flow.yaml" || fail "specrelay-flow.yaml must configure the main repair stage"
+if rg -n 'parallel:|subagents:|subagent_guard:|before:' "$project/specrelay-flow.yaml" >>"$log"; then
+  fail "specrelay-flow.yaml must not reintroduce fixed external subagents"
 fi
 
 note "Mermaid graph must display the current dynamic quality loop"

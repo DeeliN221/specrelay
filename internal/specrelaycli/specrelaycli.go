@@ -1,5 +1,5 @@
-// Package ozcli implements the standalone specrelay CLI for installing skills and inspecting specrelay changes.
-package ozcli
+// Package specrelaycli implements the standalone specrelay CLI for installing skills and inspecting specrelay changes.
+package specrelaycli
 
 import (
 	"encoding/json"

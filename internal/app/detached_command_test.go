@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-// TestDetachedWorkerCommandsUseOzFlowPrefix verifies background workers re-enter the merged CLI.
-func TestDetachedWorkerCommandsUseOzFlowPrefix(t *testing.T) {
+// TestDetachedWorkerCommandsUseSpecrelayFlowPrefix verifies background workers re-enter the merged CLI.
+func TestDetachedWorkerCommandsUseSpecrelayFlowPrefix(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string

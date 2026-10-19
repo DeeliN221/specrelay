@@ -155,7 +155,7 @@ if ! rg -n 'LifecycleDiagnostic|LifecycleResult|ValidateLifecycle|BuildLifecycle
   exit 1
 fi
 rg -n 'ValidateLifecycle|BuildLifecycle|Diagnostics|RequiredItems' \
-  "$repo_root/internal/ozcli/cmd_validate.go" \
+  "$repo_root/internal/specrelaycli/cmd_validate.go" \
   "$repo_root/internal/app/acceptance_preflight.go" \
   "$repo_root/internal/app/acceptance_run.go" \
   "$repo_root/internal/app/qa.go" >"$tmp/lifecycle-callers.log"
@@ -270,6 +270,6 @@ if rg -n "func acceptance(EvidenceHasProducer|TestMentionsEvidence|TestScriptPro
   exit 1
 fi
 
-go test ./internal/acceptance ./internal/app ./internal/ozcli ./cmd/specrelay -count=1 2>&1 | tee -a "$producer_log"
+go test ./internal/acceptance ./internal/app ./internal/specrelaycli ./cmd/specrelay -count=1 2>&1 | tee -a "$producer_log"
 
 echo "PASS"

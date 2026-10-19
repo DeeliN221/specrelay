@@ -25,15 +25,15 @@ rm -rf "$RESULT_DIR"
 mkdir -p "$RESULT_DIR"
 
 note "build real specrelay binary"
-OZ_BIN="$TMP/specrelay"
-(cd "$ROOT" && go build -o "$OZ_BIN" ./cmd/specrelay) >>"$LOG" 2>&1
+SPECRELAY_BIN="$TMP/specrelay"
+(cd "$ROOT" && go build -o "$SPECRELAY_BIN" ./cmd/specrelay) >>"$LOG" 2>&1
 
 note "check specrelay flow help exposes run-acceptance"
-"$OZ_BIN" flow --help >"$RESULT_DIR/help.txt" 2>"$RESULT_DIR/help.err" || fail "specrelay flow --help failed"
+"$SPECRELAY_BIN" flow --help >"$RESULT_DIR/help.txt" 2>"$RESULT_DIR/help.err" || fail "specrelay flow --help failed"
 grep -q 'specrelay flow run-acceptance --change <change-name> --json' "$RESULT_DIR/help.txt" || fail "help missing run-acceptance JSON command"
 
 note "check runner contract exposes run-acceptance capability"
-"$OZ_BIN" flow contract --json >"$RESULT_DIR/contract.json" 2>"$RESULT_DIR/contract.err" || fail "contract --json failed"
+"$SPECRELAY_BIN" flow contract --json >"$RESULT_DIR/contract.json" 2>"$RESULT_DIR/contract.err" || fail "contract --json failed"
 python3 - "$RESULT_DIR/contract.json" <<'PY' >>"$LOG" 2>&1
 import json
 import sys

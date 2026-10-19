@@ -35,7 +35,7 @@ migrated_runner_path="$ROOT/tests/app/migrated_app_""suite_test.go"
 if [[ -f "$migrated_runner_path" ]]; then
   fail "tests/app/migrated_app_""suite_test.go remains; the dynamic runner was not removed"
 fi
-dynamic_runner_pattern='\.go''test|OZ_MIGRATED_APP_''RUN|migrated_app_''suite'
+dynamic_runner_pattern='\.go''test|SPECRELAY_MIGRATED_APP_''RUN|migrated_app_''suite'
 if matches="$(cd "$ROOT" && rg -n "$dynamic_runner_pattern" tests/specs tests/app internal/app 2>/dev/null || true)" && [[ -n "$matches" ]]; then
   printf '%s\n' "$matches" | tee -a "$LOG"
   fail "Dynamic gotest or migrated runner references remain"
@@ -69,7 +69,7 @@ if [[ -n "$root_hits" ]]; then
 fi
 
 note "Verify core test packages run independently"
-(cd "$ROOT" && go test ./internal/app ./internal/ozcli ./cmd/specrelay ./tests -count=1) 2>&1 | tee -a "$LOG" || fail "Core test packages failed"
+(cd "$ROOT" && go test ./internal/app ./internal/specrelaycli ./cmd/specrelay ./tests -count=1) 2>&1 | tee -a "$LOG" || fail "Core test packages failed"
 
 note "Verify go install package paths build"
 tmp_bin_dir="$(mktemp -d)"

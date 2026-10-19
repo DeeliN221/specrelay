@@ -147,8 +147,8 @@ func TestBundledQAPromptKeepsExamplesOnlyForFirstQATurn(t *testing.T) {
 	requirePromptOmits(t, resumed, "clean example:", "needs_fix example:", "\"summary\": \"Core business path passed QA\"", "\"decision\": \"needs_fix\"")
 }
 
-// TestBundledExecutionPromptDelegatesToOzExec verifies execution prompt stays as a skill entry point.
-func TestBundledExecutionPromptDelegatesToOzExec(t *testing.T) {
+// TestBundledExecutionPromptDelegatesToSpecrelayExec verifies execution prompt stays as a skill entry point.
+func TestBundledExecutionPromptDelegatesToSpecrelayExec(t *testing.T) {
 	prompt := renderBundledPromptForRoleContract(t, "specrelay-flow-start.md", "specrelay-flow-start", "execution", nil)
 	requirePromptContains(t, prompt,
 		"specrelay-exec",
@@ -176,5 +176,5 @@ GO
 
 (
   cd "$ROOT"
-  go test ./internal/app -run 'TestBundled(RepairPromptKeepsOneSessionContract|QAPromptKeepsExamplesOnlyForFirstQATurn|ExecutionPromptDelegatesToOzExec|DonePromptRequiresAuditableDeliverySummary)' -count=1
+  go test ./internal/app -run 'TestBundled(RepairPromptKeepsOneSessionContract|QAPromptKeepsExamplesOnlyForFirstQATurn|ExecutionPromptDelegatesToSpecrelayExec|DonePromptRequiresAuditableDeliverySummary)' -count=1
 ) | tee "$RESULT_DIR/contract.log"

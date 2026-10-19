@@ -1,5 +1,5 @@
-// Package ozcli implements the standalone specrelay CLI entrypoint and command dispatch.
-package ozcli
+// Package specrelaycli implements the standalone specrelay CLI entrypoint and command dispatch.
+package specrelaycli
 
 import (
 	"errors"
@@ -113,7 +113,7 @@ func sourceGitTag() (string, error) {
 func sourceRoot() (string, error) {
 	// sourceRoot locates the specrelay checkout from compiled source paths before consulting the current directory.
 	if _, file, _, ok := runtime.Caller(0); ok {
-		if root, err := ozModuleRoot(filepath.Dir(file)); err == nil {
+		if root, err := specrelayModuleRoot(filepath.Dir(file)); err == nil {
 			return root, nil
 		}
 	}
@@ -122,11 +122,11 @@ func sourceRoot() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return ozModuleRoot(strings.TrimSpace(string(rootOut)))
+	return specrelayModuleRoot(strings.TrimSpace(string(rootOut)))
 }
 
-func ozModuleRoot(start string) (string, error) {
-	// ozModuleRoot walks upward until it finds the specrelay module root.
+func specrelayModuleRoot(start string) (string, error) {
+	// specrelayModuleRoot walks upward until it finds the specrelay module root.
 	for dir := start; ; dir = filepath.Dir(dir) {
 		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err == nil && strings.Contains(string(data), "module github.com/DeeliN221/specrelay\n") {

@@ -97,7 +97,7 @@ jobs:
           if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
             version="${GITHUB_REF_NAME}"
           fi
-          go build -trimpath -ldflags="-s -w -X github.com/DeeliN221/specrelay/internal/ozcli.version=${version} -X github.com/DeeliN221/specrelay/internal/app.Version=${version}" -o "${output}" ./cmd/specrelay
+          go build -trimpath -ldflags="-s -w -X github.com/DeeliN221/specrelay/internal/specrelaycli.version=${version} -X github.com/DeeliN221/specrelay/internal/app.Version=${version}" -o "${output}" ./cmd/specrelay
 
       - name: Verify release version entry points
         if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
@@ -112,16 +112,16 @@ jobs:
         run: |
           set -euo pipefail
           archive="specrelay_${GITHUB_REF_NAME}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz"
-          cp build/specrelay build/oz
-          tar -C build -czf "${archive}" specrelay oz
+          cp build/specrelay build/specrelay
+          tar -C build -czf "${archive}" specrelay specrelay
 
       - name: Package Windows binary
         if: matrix.goos == 'windows'
         run: |
           set -euo pipefail
           archive="specrelay_${GITHUB_REF_NAME}_${{ matrix.goos }}_${{ matrix.goarch }}.zip"
-          cp build/specrelay.exe build/oz.exe
-          (cd build && zip "../${archive}" specrelay.exe oz.exe)
+          cp build/specrelay.exe build/specrelay.exe
+          (cd build && zip "../${archive}" specrelay.exe specrelay.exe)
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v7

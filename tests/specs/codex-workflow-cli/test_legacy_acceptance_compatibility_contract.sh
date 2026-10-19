@@ -6,7 +6,7 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 result_dir="$repo_root/test-results/12-scope-gate"
 log="$result_dir/legacy-acceptance-compatibility.log"
-oz_bin="$result_dir/specrelay"
+specrelay_bin="$result_dir/specrelay"
 project="$result_dir/legacy-project"
 change="1-旧提案兼容"
 
@@ -21,7 +21,7 @@ note() {
 cd "$repo_root"
 
 note "Build the real specrelay executable"
-go build -o "$oz_bin" ./cmd/specrelay 2>&1 | tee -a "$log"
+go build -o "$specrelay_bin" ./cmd/specrelay 2>&1 | tee -a "$log"
 
 note "Create an active change without a task file using legacy acceptance fields"
 rm -rf "$project"
@@ -117,7 +117,7 @@ JSON
 note "Run real validation and verify unstarted legacy proposals need no scope field"
 (
   cd "$project"
-  "$oz_bin" validate "$change" --json
+  "$specrelay_bin" validate "$change" --json
 ) 2>&1 | tee -a "$log"
 
 note "PASS"
