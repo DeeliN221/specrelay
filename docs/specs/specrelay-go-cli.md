@@ -10,7 +10,7 @@ The CLI MUST expose `list | l [--json]`, `install | i [--global | -g]`, and `lan
 
 Proposal directories MUST use a numeric prefix only: `docs/changes/<number>-<description>` while active and `docs/changes/archive/<number>-<description>` after archiving. New archives MUST NOT add a date prefix. Number scanning MUST still read legacy `YYYY-MM-DD-<number>-<description>` archives so existing repositories keep correct numbering, but a date-prefixed directory directly under `docs/changes/` MUST be rejected by `create`, `status`, `validate`, and `archive` instead of being counted as proposal number `YYYY`.
 
-Default help, statuses, diagnostics, generated delivery reports, and bundled instructions MUST be English. JSON keys and machine status values MUST remain stable. Change names MUST accept English and Unicode letters, digits, and hyphens while rejecting path separators, spaces, and a leading hyphen. Numbered active changes use `<positive-number>-<description>`.
+Help, statuses, diagnostics, generated delivery reports, and bundled instructions MUST be English by default and MUST follow the effective language selected by `specrelay language`. JSON keys and machine status values MUST remain stable. Change names MUST accept English and Unicode letters, digits, and hyphens while rejecting path separators, spaces, and a leading hyphen. Numbered active changes use `<positive-number>-<description>`.
 
 ### Language
 

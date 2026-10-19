@@ -67,7 +67,7 @@ func validateChangeName(name string) error {
 func validateNumberedChange(change string) error {
 	// validateNumberedChange verifies the archived and active change directory naming rule.
 	if datedChangePrefixRe.MatchString(change) {
-		return errors.New("change directory must match <number>-<change-name>; active proposals must not use a date prefix")
+		return i18n.New("change directory must match <number>-<change-name>; active proposals must not use a date prefix")
 	}
 	re := regexp.MustCompile(`^[1-9][0-9]*-(.+)$`)
 	matches := re.FindStringSubmatch(change)

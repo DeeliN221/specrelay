@@ -30,7 +30,7 @@ description: 校验并归档已完成的 specrelay 提案，将其已验证的�
 - 对于独立归档，使用 `DELIVERY.md`、`README.md` 和 `manifest.json` 收集最终证据。
 - 为审核者编写交付报告：用户收益、准备工作、操作、预期结果、实际观察、直接证据和限制。对于修复，包含前后差异。
 - 命令、退出码、HTTP 200、元素存在、测试通过消息、哈希和硬编码字符串可以补充证据，但不能替代可理解的截图、视频、业务日志或真实输入/输出。
-- 运行 `specrelay archive <change> --yes`。CLI 会移动包含 `tests/` 的提案目录，并改写脚本、`acceptance.json`、`brief.md`、`spec.md` 及其他文本中的提案测试路径。它不会将测试按逻辑合并到长期 `tests/specs/`。
+- 运行 `specrelay archive <change> --yes`。CLI 会把包含 `tests/` 的提案目录移动到 `docs/changes/archive/<number>-<change-name>`（不添加日期前缀），并改写脚本、`acceptance.json`、`brief.md`、`spec.md` 及其他文本中的提案测试路径。它不会将测试按逻辑合并到长期 `tests/specs/`。
 - 理解每个归档测试的业务契约和断言。按能力而非提案编号组织维护的测试；不要只是整目录复制提案测试。
 - 源码注释可以引用提案（例如 `// Sources: 1-login, 3-access-control`），而文件名应描述能力。
 - 将归档规格中的持久行为合并到 `docs/specs/*.md`；对于 small 变更，使用简报。更新路径后运行受影响的规格测试。这些编辑必须在最终工作流 QA 边界之前完成。
