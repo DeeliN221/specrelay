@@ -18,9 +18,12 @@ import (
 )
 
 var (
-	version                = "dev"
-	activeChangeNumberRe   = regexp.MustCompile(`^([1-9][0-9]*)-.+$`)
-	archivedChangeNumberRe = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}-([1-9][0-9]*)-.+$`)
+	version              = "dev"
+	activeChangeNumberRe = regexp.MustCompile(`^([1-9][0-9]*)-.+$`)
+	// legacyArchivedChangeNumberRe keeps numbered legacy archives readable after the date prefix was removed.
+	legacyArchivedChangeNumberRe = regexp.MustCompile(`^(?:[0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{8})-([1-9][0-9]*)-.+$`)
+	// datedChangePrefixRe marks archive-style names so active changes never read the year as the proposal number.
+	datedChangePrefixRe = regexp.MustCompile(`^(?:[0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{8})-`)
 )
 
 type cli struct {
@@ -63,6 +66,9 @@ func validateChangeName(name string) error {
 
 func validateNumberedChange(change string) error {
 	// validateNumberedChange verifies the archived and active change directory naming rule.
+	if datedChangePrefixRe.MatchString(change) {
+		return errors.New("change directory must match <number>-<change-name>; active proposals must not use a date prefix")
+	}
 	re := regexp.MustCompile(`^[1-9][0-9]*-(.+)$`)
 	matches := re.FindStringSubmatch(change)
 	if matches == nil {

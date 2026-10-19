@@ -104,7 +104,7 @@ func manualInterventionAllowedDirs(repo string, state State) []string {
 		filepath.Join(repo, "tests", "evidence", "proposals", state.ChangeName),
 		filepath.Join(repo, "docs", "changes", state.ChangeName),
 	}
-	matches, err := filepath.Glob(filepath.Join(repo, "docs", "changes", "archive", "*-"+state.ChangeName))
+	matches, err := archivedChangeDirs(repo, state.ChangeName)
 	if err == nil && len(matches) == 1 {
 		dirs = append(dirs, matches[0])
 	}
@@ -335,28 +335,52 @@ func validAcceptanceHash(value string) bool {
 	return err == nil && len(decoded) == sha256.Size
 }
 
+// archivedChangeDirs lists archive directories by numeric name or legacy dated name.
+func archivedChangeDirs(repo, changeName string) ([]string, error) {
+	if err := validateChangeNameForPath(changeName); err != nil {
+		return nil, err
+	}
+	archiveDir := filepath.Join(repo, "docs", "changes", "archive")
+	entries, err := os.ReadDir(archiveDir)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	suffix := "-" + changeName
+	matches := []string{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if name == changeName || strings.HasSuffix(name, suffix) {
+			matches = append(matches, filepath.Join(archiveDir, name))
+		}
+	}
+	return matches, nil
+}
+
 // archivedAcceptancePath locates acceptance.json after specrelay archive moves a change.
 func archivedAcceptancePath(repo, changeName string) (string, error) {
-	if err := validateChangeNameForPath(changeName); err != nil {
-		return "", err
-	}
-	matches, err := filepath.Glob(filepath.Join(repo, "docs", "changes", "archive", "*-"+changeName, "acceptance.json"))
+	matches, err := archivedChangeDirs(repo, changeName)
 	if err != nil {
 		return "", err
 	}
-	if len(matches) == 0 {
-		return "", os.ErrNotExist
+	for i := len(matches) - 1; i >= 0; i-- {
+		path := filepath.Join(matches[i], "acceptance.json")
+		if fileExists(path) {
+			return path, nil
+		}
 	}
-	return matches[len(matches)-1], nil
+	return "", os.ErrNotExist
 }
 
-// archiveExists checks for an archived change directory with the date prefix.
+// archiveExists checks for an archived change directory with a numeric or legacy dated name.
 func archiveExists(repo, changeName string) bool {
-	if err := validateChangeNameForPath(changeName); err != nil {
-		return false
-	}
-	matches, _ := filepath.Glob(filepath.Join(repo, "docs", "changes", "archive", "*-"+changeName))
-	return len(matches) > 0
+	matches, err := archivedChangeDirs(repo, changeName)
+	return err == nil && len(matches) > 0
 }
 
 // startDetachedResumeCommand runs the sealed workflow worker without streaming output to the terminal.

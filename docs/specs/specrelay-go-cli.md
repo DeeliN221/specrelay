@@ -6,7 +6,9 @@ This document defines the default English command contract. The [Chinese specifi
 
 The CLI MUST expose `list | l [--json]`, `install | i [--global | -g]`, and `language [en|zh-CN] [--global] [--json]` as daily commands. Automation retains `create`, `status <change> [--json]`, `validate <change> [--json]`, and `archive <change> --yes`. `flow` exposes the workflow runner. Removed top-level `init`, `plan`, and `exec` commands MUST fail.
 
-`specrelay create` MUST return the next numeric proposal identifier without creating a directory or files. The maximum number is computed across active and dated archived proposals. `specrelay create` MUST NOT accept a proposal-name argument.
+`specrelay create` MUST return the next numeric proposal identifier without creating a directory or files. The maximum number is computed across active and archived proposals. `specrelay create` MUST NOT accept a proposal-name argument.
+
+Proposal directories MUST use a numeric prefix only: `docs/changes/<number>-<description>` while active and `docs/changes/archive/<number>-<description>` after archiving. New archives MUST NOT add a date prefix. Number scanning MUST still read legacy `YYYY-MM-DD-<number>-<description>` archives so existing repositories keep correct numbering, but a date-prefixed directory directly under `docs/changes/` MUST be rejected by `create`, `status`, `validate`, and `archive` instead of being counted as proposal number `YYYY`.
 
 Default help, statuses, diagnostics, generated delivery reports, and bundled instructions MUST be English. JSON keys and machine status values MUST remain stable. Change names MUST accept English and Unicode letters, digits, and hyphens while rejecting path separators, spaces, and a leading hyphen. Numbered active changes use `<positive-number>-<description>`.
 
@@ -50,7 +52,7 @@ Final independent QA MUST record an actual observation for each delivery scenari
 
 ## Archive
 
-`specrelay archive <change> --yes` requires explicit confirmation and a valid submission evidence bundle. It MUST move the active proposal, including its `tests/`, to the dated archive and rewrite proposal-relative test references in scripts, contracts, and documentation. It MUST reject an existing destination.
+`specrelay archive <change> --yes` requires explicit confirmation and a valid submission evidence bundle. It MUST move the active proposal, including its `tests/`, to `docs/changes/archive/<change>` without adding a date prefix and rewrite proposal-relative test references in scripts, contracts, and documentation. It MUST reject an existing destination.
 
 The CLI performs the mechanical archive; the archive skill owns consolidation of lasting specifications and tests. In a sealed workflow, those substantive changes MUST already be complete before final QA. Only mechanical movement, delivery summary creation, and committing the engine's final output may follow final QA.
 

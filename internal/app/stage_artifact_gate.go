@@ -69,7 +69,7 @@ func (e *Engine) stageArtifactExpectation(state State) stageArtifactExpectation 
 	case state.Stage == "archive":
 		return stageArtifactExpectation{
 			Path:        filepath.Join(base, "delivery-summary.md"),
-			Description: "delivery summary and docs/changes/archive/*-" + state.ChangeName + " archive directory",
+			Description: "delivery summary and docs/changes/archive/" + state.ChangeName + " archive directory",
 		}
 	default:
 		return stageArtifactExpectation{Description: "current stage artifact"}

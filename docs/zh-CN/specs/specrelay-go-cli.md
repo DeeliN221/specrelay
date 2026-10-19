@@ -54,6 +54,16 @@
 - **并且** 用户自定义的提示词保持不变
 - **当** 用户运行 `specrelay language zh-CN --global`
 - **则** 偏好写入 `~/specrelay-flow.yaml`，并作为没有项目配置时的有效语言
+### 场景：提案目录只使用数字前缀
+
+- **给定** 提案以 `docs/changes/<number>-<change-name>` 命名
+- **当** 用户归档提案
+- **则** 命令把它移动到 `docs/changes/archive/<number>-<change-name>`，不添加日期前缀
+- **并且** `specrelay create` 仍能读取历史 `YYYY-MM-DD-<number>-<change-name>` 归档目录并跳过日期取正确编号
+- **给定** `docs/changes/` 下存在带 `YYYY-MM-DD-` 日期前缀的目录
+- **当** 下游工具运行 `specrelay create`
+- **则** 命令失败并指出该目录，不得把年份当作提案编号
+- **并且** `status`、`validate` 和 `archive` 对这类目录名同样失败并提示使用 `<number>-<change-name>`
 
 ### 场景：下游校验接口继续可用
 
@@ -112,7 +122,7 @@
 - **并且** small 与 standard 提案都不得依赖任务复选框判断完成状态
 - **并且** 命令必须同步更新归档提案的测试脚本、验收合同和文档中指向 `tests/` 的相对路径
 - **并且** 命令不得把提案测试按业务能力机械合并进长期 `tests/specs/`
-- **并且** 归档后的提案测试留在 `docs/changes/archive/<date>-1-需求/tests/` 作为后续规格测试合并来源
+- **并且** 归档后的提案测试留在 `docs/changes/archive/1-需求/tests/` 作为后续规格测试合并来源
 
 ### 需求：提案执行计划保持动态
 
