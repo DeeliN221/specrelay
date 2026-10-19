@@ -134,7 +134,7 @@ func nextChangeNumber(root string) (int, error) {
 		}
 		if datedChangePrefixRe.MatchString(entry.Name()) {
 			// A dated name under changes/ would otherwise be read as year 2026, not the proposal number.
-			return 0, fmt.Errorf("%s: active proposals must not use a date prefix; rename to <number>-<change-name>", filepath.Join(changesDir, entry.Name()))
+			return 0, i18n.Errorf("%s: active proposals must not use a date prefix; rename to <number>-<change-name>", filepath.Join(changesDir, entry.Name()))
 		}
 		if number, ok := activeChangeNumber(entry.Name()); ok && number > maxNumber {
 			maxNumber = number

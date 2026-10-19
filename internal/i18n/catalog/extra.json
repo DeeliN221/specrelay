@@ -22,6 +22,8 @@
   "tests contains non-test code: %s": "tests 目录包含非测试代码：%s",
   "tests must contain at least one test file": "tests 目录必须至少包含一个测试文件",
   "unsupported language %q; use en or zh-CN": "不支持的语言 %q；请使用 en 或 zh-CN",
+  "%s: active proposals must not use a date prefix; rename to <number>-<change-name>": "%s：活动提案不得使用日期前缀；请重命名为 <number>-<change-name>",
+  "change directory must match <number>-<change-name>; active proposals must not use a date prefix": "变更目录必须匹配 <number>-<change-name>；活动提案不得使用日期前缀",
   "plan": "规划",
   "write": "实现",
   "fix": "修复",

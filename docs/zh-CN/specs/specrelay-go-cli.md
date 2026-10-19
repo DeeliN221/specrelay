@@ -4,7 +4,7 @@
 
 ## 需求：命令组最小化且保留自动化接口
 
-系统必须把 `list` 和 `install` 作为用户日常命令，同时保留 `create`、`status`、`validate`、`archive` 作为下游 `specrelay flow` 工具和内置 skill 使用的自动化接口。
+系统必须把 `list`、`install` 和 `language` 作为用户日常命令，同时保留 `create`、`status`、`validate`、`archive` 作为下游 `specrelay flow` 工具和内置 skill 使用的自动化接口。
 
 ### 场景：变更入口分为 micro、small 和 standard
 
@@ -54,6 +54,7 @@
 - **并且** 用户自定义的提示词保持不变
 - **当** 用户运行 `specrelay language zh-CN --global`
 - **则** 偏好写入 `~/specrelay-flow.yaml`，并作为没有项目配置时的有效语言
+
 ### 场景：提案目录只使用数字前缀
 
 - **给定** 提案以 `docs/changes/<number>-<change-name>` 命名
