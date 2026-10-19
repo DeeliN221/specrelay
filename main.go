@@ -4,10 +4,10 @@ package main
 import (
 	"os"
 
-	"github.com/DeeliN221/specrelay/internal/ozcli"
+	"github.com/DeeliN221/specrelay/internal/specrelaycli"
 )
 
 // main delegates root-package installs to the specrelay CLI implementation.
 func main() {
-	os.Exit(ozcli.Main(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(specrelaycli.Main(os.Args[1:], os.Stdout, os.Stderr))
 }

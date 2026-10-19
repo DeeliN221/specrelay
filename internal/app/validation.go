@@ -327,12 +327,12 @@ func runStageValidation(ctx context.Context, repo, changeName, stage string, att
 // runChangeValidationCommand runs specrelay validate for the active change and captures its JSON diagnostics.
 func runChangeValidationCommand(ctx context.Context, repo, changeName string, allowLegacyTask bool) ValidationCommandResult {
 	// runChangeValidationCommand uses the same specrelay command resolution as workflow startup validation.
-	path, err := resolveCommand(ozCommand)
+	path, err := resolveCommand(specrelayCommand)
 	label := changeValidationCommandDescription + " " + changeName + " --json"
 	if err != nil {
 		return ValidationCommandResult{Command: label, ExitCode: -1, Output: limitValidationOutput(err.Error())}
 	}
-	args := append([]string{}, ozCommandPrefix...)
+	args := append([]string{}, specrelayCommandPrefix...)
 	args = append(args, "validate", changeName, "--json")
 	cmd := commandContext(ctx, path, args...)
 	cmd.Dir = repo
@@ -342,7 +342,7 @@ func runChangeValidationCommand(ctx context.Context, repo, changeName string, al
 	runErr := cmd.Run()
 	exitCode := commandExitCode(runErr)
 	if output.Len() > 0 {
-		var response ozValidateResponse
+		var response specrelayValidateResponse
 		if err := json.Unmarshal(output.Bytes(), &response); err != nil {
 			if exitCode == 0 {
 				exitCode = -1
@@ -372,7 +372,7 @@ func runChangeValidationCommand(ctx context.Context, repo, changeName string, al
 }
 
 // filterLegacyTaskValidationError lets already-sealed pre-migration runs finish without weakening new runs.
-func filterLegacyTaskValidationError(response ozValidateResponse) ozValidateResponse {
+func filterLegacyTaskValidationError(response specrelayValidateResponse) specrelayValidateResponse {
 	filtered := response.Errors[:0]
 	removed := false
 	for _, item := range response.Errors {

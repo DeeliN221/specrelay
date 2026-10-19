@@ -1,5 +1,5 @@
-// Package ozcli implements standalone specrelay change archiving.
-package ozcli
+// Package specrelaycli implements standalone specrelay change archiving.
+package specrelaycli
 
 import (
 	"errors"

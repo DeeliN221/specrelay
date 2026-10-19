@@ -1,13 +1,9 @@
-// Package main provides the cmd/specrelay entrypoint used by local builds and release automation.
+// Package main provides the optional legacy command for saved Specrelay prompts.
 package main
 
 import (
+	"github.com/DeeliN221/specrelay/internal/specrelaycli"
 	"os"
-
-	"github.com/DeeliN221/specrelay/internal/ozcli"
 )
 
-// main delegates command behavior to the shared specrelay CLI implementation.
-func main() {
-	os.Exit(ozcli.Main(os.Args[1:], os.Stdout, os.Stderr))
-}
+func main() { os.Exit(specrelaycli.Main(os.Args[1:], os.Stdout, os.Stderr)) }

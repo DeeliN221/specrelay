@@ -134,8 +134,8 @@ func TestChangeSixDiscussPromptKeepsPlanningEntry(t *testing.T) {
 	requireChangeSixPromptContains(t, prompt, "Planning task", "specrelay-plan")
 }
 
-// TestChangeSixExecutionPromptDelegatesToOzExec prevents start prompts from duplicating specrelay-exec.
-func TestChangeSixExecutionPromptDelegatesToOzExec(t *testing.T) {
+// TestChangeSixExecutionPromptDelegatesToSpecrelayExec prevents start prompts from duplicating specrelay-exec.
+func TestChangeSixExecutionPromptDelegatesToSpecrelayExec(t *testing.T) {
 	prompt := renderChangeSixPrompt(t, "specrelay-flow-start.md", "specrelay-flow-start", "execution", nil)
 	requireChangeSixPromptContains(t, prompt,
 		"state.json.change_name",
@@ -188,7 +188,7 @@ func TestChangeSixQAPromptKeepsFirstTurnAcceptanceContract(t *testing.T) {
 	requireChangeSixPromptOmits(t, resumed, "clean example:", "needs_fix example:")
 }
 
-// TestChangeSixArchivePromptDelegatesToOzArchive verifies archive prompt stays as a skill entry point.
+// TestChangeSixArchivePromptDelegatesToSpecrelayArchive verifies archive prompt stays as a skill entry point.
 func TestChangeSixArchivePromptKeepsDeliveryContract(t *testing.T) {
 	prompt := renderChangeSixPrompt(t, "specrelay-flow-done.md", "specrelay-flow-done", "archive", nil)
 	requireChangeSixPromptContains(t, prompt,
@@ -208,5 +208,5 @@ GO
 
 (
   cd "$ROOT"
-  go test ./internal/app -run 'TestParallelEnabledPromptsCarryFanoutArtifacts|TestBundledOzSkillPromptsDelegateToSkills' -count=1
+  go test ./internal/app -run 'TestParallelEnabledPromptsCarryFanoutArtifacts|TestBundledSpecrelaySkillPromptsDelegateToSkills' -count=1
 ) | tee -a "$RESULT_DIR/contract.log"

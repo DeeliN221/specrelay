@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	ozCommand       = "specrelay"
-	ozCommandPrefix []string
+	specrelayCommand       = "specrelay"
+	specrelayCommandPrefix []string
 )
 
 // Change describes one active specrelay change directory.
@@ -23,21 +23,21 @@ type Change struct {
 	Path string
 }
 
-type ozListResponse struct {
+type specrelayListResponse struct {
 	Changes []struct {
 		Name string `json:"name"`
 	} `json:"changes"`
 }
 
-type ozValidateResponse struct {
+type specrelayValidateResponse struct {
 	Valid  bool     `json:"valid"`
 	Errors []string `json:"errors"`
 }
 
 // ListChanges asks specrelay for active changes and returns them in runner order.
 func ListChanges(repo string) ([]Change, error) {
-	var out ozListResponse
-	if err := runOzJSON(repo, []string{"list", "--json"}, &out); err != nil {
+	var out specrelayListResponse
+	if err := runSpecrelayJSON(repo, []string{"list", "--json"}, &out); err != nil {
 		return nil, err
 	}
 	changes := make([]Change, 0, len(out.Changes))
@@ -58,8 +58,8 @@ func ValidateChange(repo, changeName string) error {
 	if err := validateChangeNameForPath(changeName); err != nil {
 		return err
 	}
-	var out ozValidateResponse
-	cmdErr := runOzJSON(repo, []string{"validate", changeName, "--json"}, &out)
+	var out specrelayValidateResponse
+	cmdErr := runSpecrelayJSON(repo, []string{"validate", changeName, "--json"}, &out)
 	if cmdErr != nil && len(out.Errors) == 0 {
 		return cmdErr
 	}
@@ -72,12 +72,12 @@ func ValidateChange(repo, changeName string) error {
 	return cmdErr
 }
 
-func runOzJSON(repo string, args []string, target any) error {
-	path, err := resolveCommand(ozCommand)
+func runSpecrelayJSON(repo string, args []string, target any) error {
+	path, err := resolveCommand(specrelayCommand)
 	if err != nil {
 		return err
 	}
-	commandArgs := append([]string{}, ozCommandPrefix...)
+	commandArgs := append([]string{}, specrelayCommandPrefix...)
 	commandArgs = append(commandArgs, args...)
 	cmd := commandContext(context.Background(), path, commandArgs...)
 	cmd.Dir = repo

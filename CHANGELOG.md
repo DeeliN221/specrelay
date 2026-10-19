@@ -14,6 +14,6 @@
 - Launch SpecRelay with a fresh repository and the `specrelay` CLI.
 - Coordinate specifications, implementation, independent acceptance checks, and reviewable delivery.
 - Rename bundled skills, installation instructions, release assets, and the self-update source.
-- Preserve Oz configuration filenames, workflow state locations, JSON fields, and environment variables.
+- Preserve Specrelay configuration filenames, workflow state locations, JSON fields, and environment variables.
 
-Earlier Oz releases and Git history are not included.
+Earlier Specrelay releases and Git history are not included.

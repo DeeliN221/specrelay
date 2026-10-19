@@ -1,5 +1,5 @@
-// Package ozcli implements standalone specrelay change validation.
-package ozcli
+// Package specrelaycli implements standalone specrelay change validation.
+package specrelaycli
 
 import (
 	"errors"
@@ -130,7 +130,7 @@ func changeUsesStandardDocs(changeDir string, names []string) bool {
 }
 
 func validateAcceptanceFiles(projectRoot, acceptancePath string) ([]acceptance.LifecycleDiagnostic, []string) {
-	// validateAcceptanceFiles preserves the ozcli validation boundary while delegating lifecycle checks.
+	// validateAcceptanceFiles preserves the specrelaycli validation boundary while delegating lifecycle checks.
 	contract, err := acceptance.Read(acceptancePath)
 	if err != nil {
 		return nil, []string{"invalid acceptance.json: " + err.Error()}

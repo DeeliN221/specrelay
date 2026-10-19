@@ -27,8 +27,8 @@ fail() {
 assert_no_run_state() {
   local state_root="$1"
   local output_file="$2"
-  if [[ -d "$state_root/oz/flow/repos" ]]; then
-    find "$state_root/oz/flow/repos" -path '*/runs/*/state.json' -type f | sort >"$output_file"
+  if [[ -d "$state_root/specrelay/flow/repos" ]]; then
+    find "$state_root/specrelay/flow/repos" -path '*/runs/*/state.json' -type f | sort >"$output_file"
     [[ ! -s "$output_file" ]] || fail "Failed preflight must not create run state"
   else
     : >"$output_file"
@@ -89,9 +89,9 @@ JSON
 
 note "Build the real workflow and proposal CLI"
 WO="$TMP/wo"
-OZ="$TMP/specrelay"
+SPECRELAY="$TMP/specrelay"
 (cd "$ROOT" && go build -o "$WO" ./cmd/specrelay) 2>&1 | tee -a "$LOG"
-(cd "$ROOT" && go build -o "$OZ" ./cmd/specrelay) 2>&1 | tee -a "$LOG"
+(cd "$ROOT" && go build -o "$SPECRELAY" ./cmd/specrelay) 2>&1 | tee -a "$LOG"
 
 PROJECT="$TMP/project"
 CHANGE="1-演示检查"
@@ -101,7 +101,7 @@ write_demo_change "$PROJECT" "$CHANGE"
 (cd "$PROJECT" && git add . && git commit -q -m init)
 
 note "Missing pi must fail without creating run state"
-cat >"$PROJECT/oz-flow.yaml" <<'YAML'
+cat >"$PROJECT/specrelay-flow.yaml" <<'YAML'
 max_review_iterations: 0
 stages:
   execution:
@@ -117,7 +117,7 @@ printf '{"type":"thread.started","thread_id":"fake-thread"}\n'
 SH
 chmod +x "$FAKEBIN/codex"
 ln -s "$(command -v git)" "$FAKEBIN/git"
-ln -s "$OZ" "$FAKEBIN/specrelay"
+ln -s "$SPECRELAY" "$FAKEBIN/specrelay"
 set +e
 (
   cd "$PROJECT"
@@ -133,7 +133,7 @@ assert_no_run_state "$TMP/state-missing-pi" "$STATE_SNAPSHOT"
 printf 'missing pi: no run state created\n' >"$STATE_SNAPSHOT"
 
 note "Missing agy must fail without creating run state"
-cat >"$PROJECT/oz-flow.yaml" <<'YAML'
+cat >"$PROJECT/specrelay-flow.yaml" <<'YAML'
 max_review_iterations: 0
 stages:
   execution:
@@ -153,7 +153,7 @@ printf '{"type":"session","id":"fake-pi"}\n'
 SH
 chmod +x "$FAKEBIN/codex" "$FAKEBIN/pi"
 ln -s "$(command -v git)" "$FAKEBIN/git"
-ln -s "$OZ" "$FAKEBIN/specrelay"
+ln -s "$SPECRELAY" "$FAKEBIN/specrelay"
 set +e
 (
   cd "$PROJECT"
@@ -169,7 +169,7 @@ assert_no_run_state "$TMP/state-missing-agy" "$TMP/missing-agy-state.txt"
 printf 'missing agy: no run state created\n' >>"$STATE_SNAPSHOT"
 
 note "Missing codex must fail without creating run state"
-rm -f "$PROJECT/oz-flow.yaml"
+rm -f "$PROJECT/specrelay-flow.yaml"
 FAKEBIN="$TMP/bin-missing-codex"
 mkdir -p "$FAKEBIN"
 cat >"$FAKEBIN/pi" <<'SH'
@@ -182,7 +182,7 @@ printf 'fake agy\n'
 SH
 chmod +x "$FAKEBIN/pi" "$FAKEBIN/agy"
 ln -s "$(command -v git)" "$FAKEBIN/git"
-ln -s "$OZ" "$FAKEBIN/specrelay"
+ln -s "$SPECRELAY" "$FAKEBIN/specrelay"
 set +e
 (
   cd "$PROJECT"
@@ -199,7 +199,7 @@ printf 'missing codex: no run state created\n' >>"$STATE_SNAPSHOT"
 
 note "Removed backend configuration must fail as an unknown tool"
 legacy_tool="open""code"
-cat >"$PROJECT/oz-flow.yaml" <<YAML
+cat >"$PROJECT/specrelay-flow.yaml" <<YAML
 max_review_iterations: 0
 stages:
   execution:

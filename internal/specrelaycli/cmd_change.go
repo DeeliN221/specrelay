@@ -1,5 +1,5 @@
-// Package ozcli implements standalone specrelay change inspection commands.
-package ozcli
+// Package specrelaycli implements standalone specrelay change inspection commands.
+package specrelaycli
 
 import (
 	"errors"

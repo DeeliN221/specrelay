@@ -729,14 +729,14 @@ func updateHTTPClient() *http.Client {
 
 // updateCachePath resolves the user cache file for update checks.
 func updateCachePath() (string, error) {
-	if override := os.Getenv("OZ_FLOW_UPDATE_CACHE"); override != "" {
+	if override := os.Getenv("SPECRELAY_FLOW_UPDATE_CACHE"); override != "" {
 		return override, nil
 	}
 	root, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "oz", "flow", "update-check.json"), nil
+	return filepath.Join(root, "specrelay", "flow", "update-check.json"), nil
 }
 
 // readUpdateCache decodes update check cache.

@@ -27,9 +27,9 @@ trap cleanup EXIT
 rm -rf "$RESULT_DIR"
 mkdir -p "$RESULT_DIR"
 
-OZ_BIN="$TMP/wo"
+SPECRELAY_BIN="$TMP/wo"
 note "build real specrelay flow binary"
-(cd "$ROOT" && go build -o "$OZ_BIN" ./cmd/specrelay) >>"$RESULT_DIR/contract.log" 2>&1
+(cd "$ROOT" && go build -o "$SPECRELAY_BIN" ./cmd/specrelay) >>"$RESULT_DIR/contract.log" 2>&1
 
 FAKEBIN="$TMP/fakebin"
 mkdir -p "$FAKEBIN"
@@ -142,7 +142,7 @@ if stage.startswith("audit_"):
         "non_blocking_findings": [],
         "evidence": ["go test ./... passed; runtime batch audit verified"],
         "checks": {
-            "oz_aligned": True,
+            "specrelay_aligned": True,
             "tests_meaningful": True,
             "implementation_scoped": True,
             "runtime_behavior_verified": True,
@@ -230,7 +230,7 @@ SH
 JSON
 done
 
-cat >"$PROJECT/oz-flow.yaml" <<'YAML'
+cat >"$PROJECT/specrelay-flow.yaml" <<'YAML'
 max_repair_iterations: 2
 validation:
   limit: 3
@@ -258,7 +258,7 @@ repo = os.path.abspath(sys.argv[1])
 print(os.path.basename(repo).lower() + "-" + hashlib.sha1(repo.encode()).hexdigest()[:10])
 PY
 )"
-batch_dir="$TMP/state/oz/flow/repos/$repo_key/batches/batch-artifact-retry"
+batch_dir="$TMP/state/specrelay/flow/repos/$repo_key/batches/batch-artifact-retry"
 mkdir -p "$batch_dir"
 cat >"$batch_dir/state.json" <<'JSON'
 {
@@ -278,7 +278,7 @@ CODEX_CALL_LOG="$RESULT_DIR/codex-calls.jsonl" \
 XDG_STATE_HOME="$TMP/state" \
 HOME="$TMP/home" \
 PATH="$FAKEBIN:/usr/bin:/bin" \
-  bash -c 'cd "$1" && "$2" flow batch --batch-id batch-artifact-retry --json' _ "$PROJECT" "$OZ_BIN" >"$RESULT_DIR/batch.jsonl" 2>"$RESULT_DIR/batch.err"
+  bash -c 'cd "$1" && "$2" flow batch --batch-id batch-artifact-retry --json' _ "$PROJECT" "$SPECRELAY_BIN" >"$RESULT_DIR/batch.jsonl" 2>"$RESULT_DIR/batch.err"
 batch_code=$?
 set -e
 cat "$RESULT_DIR/batch.jsonl" >>"$RESULT_DIR/contract.log"

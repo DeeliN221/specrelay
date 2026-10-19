@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "build current specrelay for tests: %v\n%s", buildErr, output)
 		os.Exit(1)
 	}
-	ozCommand = binary
+	specrelayCommand = binary
 	code := m.Run()
 	_ = os.RemoveAll(tempDir)
 	os.Exit(code)

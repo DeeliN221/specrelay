@@ -51,7 +51,7 @@ func TestCleanReviewAcceptsNonBlockingHistoricalDebt(t *testing.T) {
     }
   ],
   "checks": {
-    "oz_aligned": true,
+    "specrelay_aligned": true,
     "tests_meaningful": true,
     "implementation_scoped": true,
     "runtime_behavior_verified": true,
@@ -91,7 +91,7 @@ func TestCleanReviewStillRejectsBlockingFindings(t *testing.T) {
     }
   ],
   "checks": {
-    "oz_aligned": true,
+    "specrelay_aligned": true,
     "tests_meaningful": true,
     "implementation_scoped": true,
     "runtime_behavior_verified": true,

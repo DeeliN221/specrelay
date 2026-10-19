@@ -90,7 +90,7 @@ type ValidationCommand struct {
 // DefaultWorkflowConfigYAML is kept for tests that compare the generated config text.
 var DefaultWorkflowConfigYAML = mustDefaultWorkflowConfigYAML()
 
-// LoadWorkflowConfig reads oz-flow.yaml or oz-flow.yml and returns an expanded effective config.
+// LoadWorkflowConfig reads specrelay-flow.yaml or specrelay-flow.yml and returns an expanded effective config.
 func LoadWorkflowConfig(repo string) (WorkflowConfig, error) {
 	config := DefaultWorkflowConfig()
 	path, err := workflowConfigPath(repo)
@@ -113,7 +113,7 @@ func LoadWorkflowConfig(repo string) (WorkflowConfig, error) {
 	return config, nil
 }
 
-// DefaultWorkflowConfig returns the built-in runtime behavior used without oz-flow.yaml.
+// DefaultWorkflowConfig returns the built-in runtime behavior used without specrelay-flow.yaml.
 func DefaultWorkflowConfig() WorkflowConfig {
 	config, err := workflowConfigFromYAML([]byte(DefaultWorkflowConfigYAML), "built-in default configuration", nil)
 	if err != nil {
@@ -192,7 +192,7 @@ func globalWorkflowConfigPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve user home directory failed: %w", err)
 	}
-	return filepath.Join(home, "oz-flow.yaml"), nil
+	return filepath.Join(home, "specrelay-flow.yaml"), nil
 }
 
 func mergeWorkflowConfigFile(config *WorkflowConfig, path string) error {
@@ -209,12 +209,12 @@ func mergeWorkflowConfigFile(config *WorkflowConfig, path string) error {
 }
 
 func workflowConfigPath(repo string) (string, error) {
-	yamlPath := filepath.Join(repo, "oz-flow.yaml")
-	ymlPath := filepath.Join(repo, "oz-flow.yml")
+	yamlPath := filepath.Join(repo, "specrelay-flow.yaml")
+	ymlPath := filepath.Join(repo, "specrelay-flow.yml")
 	yamlExists := fileExists(yamlPath)
 	ymlExists := fileExists(ymlPath)
 	if yamlExists && ymlExists {
-		return "", fmt.Errorf("oz-flow.yaml and oz-flow.yml cannot both exist")
+		return "", fmt.Errorf("specrelay-flow.yaml and specrelay-flow.yml cannot both exist")
 	}
 	if yamlExists {
 		return yamlPath, nil
@@ -232,7 +232,7 @@ func InitWorkflowConfig(repo string) (string, error) {
 
 // WriteWorkflowConfig writes the built-in configuration to the repository or user level.
 func WriteWorkflowConfig(repo string, global bool) (string, error) {
-	path := filepath.Join(repo, "oz-flow.yaml")
+	path := filepath.Join(repo, "specrelay-flow.yaml")
 	if global {
 		var err error
 		path, err = globalWorkflowConfigPath()
@@ -243,8 +243,8 @@ func WriteWorkflowConfig(repo string, global bool) (string, error) {
 	if fileExists(path) {
 		return "", fmt.Errorf("%s already exists", filepath.Base(path))
 	}
-	if !global && fileExists(filepath.Join(repo, "oz-flow.yml")) {
-		return "", fmt.Errorf("oz-flow.yml already exists")
+	if !global && fileExists(filepath.Join(repo, "specrelay-flow.yml")) {
+		return "", fmt.Errorf("specrelay-flow.yml already exists")
 	}
 	if err := os.WriteFile(path, []byte(DefaultWorkflowConfigYAML), 0o644); err != nil {
 		return "", err

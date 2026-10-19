@@ -80,7 +80,7 @@ A process that stops producing output may be interrupted for retry using the run
 
 ### Requirement: One source of defaults
 
-Configuration merges embedded defaults, user `~/oz-flow.yaml`, repository `oz-flow.yaml`, and finally the immutable run snapshot. `specrelay flow config` writes the embedded default, optionally to the user scope with `--global`. It MUST NOT overwrite an existing config or allow both `.yaml` and `.yml` to silently compete.
+Configuration merges embedded defaults, user `~/specrelay-flow.yaml`, repository `specrelay-flow.yaml`, and finally the immutable run snapshot. `specrelay flow config` writes the embedded default, optionally to the user scope with `--global`. It MUST NOT overwrite an existing config or allow both `.yaml` and `.yml` to silently compete.
 
 The public interface has no engine-selection or profile-selection option. Removed `flow init`, `flow install`, legacy top-level fields, and obsolete aliases MUST report their replacement or reject the input. Deprecated review/fix settings can migrate only where the compatibility parser explicitly supports them; conflicting old and new forms must fail.
 

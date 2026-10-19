@@ -32,8 +32,8 @@ rm -rf "$RESULT_DIR"
 mkdir -p "$RESULT_DIR"
 
 note "build real specrelay binary"
-OZ_BIN="$TMP/specrelay"
-(cd "$ROOT" && go build -o "$OZ_BIN" ./cmd/specrelay) >>"$LOG" 2>&1
+SPECRELAY_BIN="$TMP/specrelay"
+(cd "$ROOT" && go build -o "$SPECRELAY_BIN" ./cmd/specrelay) >>"$LOG" 2>&1
 
 PROJECT="$TMP/project"
 CHANGE="1-验收执行样例"
@@ -118,7 +118,7 @@ note "run acceptance contract in temporary project"
 set +e
 (
   cd "$PROJECT"
-  "$OZ_BIN" flow run-acceptance --change "$CHANGE" --json
+  "$SPECRELAY_BIN" flow run-acceptance --change "$CHANGE" --json
 ) >"$RESULT_DIR/run.json" 2>"$RESULT_DIR/run.err"
 code=$?
 set -e

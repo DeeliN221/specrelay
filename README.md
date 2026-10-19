@@ -74,10 +74,10 @@ Use `--help` on a command for its full options. Commands that support `--json` k
 Configuration is merged in this order:
 
 ```text
-built-in defaults → ~/oz-flow.yaml → repository oz-flow.yaml → run snapshot
+built-in defaults → ~/specrelay-flow.yaml → repository specrelay-flow.yaml → run snapshot
 ```
 
-`specrelay flow config` writes the embedded default configuration. Its only optional scope flag is `--global`; it does not provide profiles or profile-selection flags. Edit the generated `oz-flow.yaml` when a project needs different behavior.
+`specrelay flow config` writes the embedded default configuration. Its only optional scope flag is `--global`; it does not provide profiles or profile-selection flags. Edit the generated `specrelay-flow.yaml` when a project needs different behavior.
 
 ```yaml
 max_audit_iterations: 3
@@ -152,14 +152,14 @@ Both GitHub Actions CI and Release run the Go test suite. Version tags trigger c
 
 SpecRelay works best for changes that benefit from explicit requirements and reviewable acceptance evidence. Small cosmetic or routine edits may only need tests and a normal commit.
 
-## Migrating from Oz
+## Migrating from Specrelay
 
-Install `specrelay` and use it wherever you previously ran `oz`. Existing `oz-flow.yaml` / `oz-flow.yml`, user-level `~/oz-flow.yaml`, and the `oz/flow` state directory retain their locations. JSON contract fields and `OZ_*` environment variables retain their existing spelling. Stop active runs before switching executables.
+Install `specrelay` and use it wherever you previously ran `specrelay`. Existing `specrelay-flow.yaml` / `specrelay-flow.yml`, user-level `~/specrelay-flow.yaml`, and the `specrelay/flow` state directory retain their locations. JSON contract fields and `SPECRELAY_*` environment variables retain their existing spelling. Stop active runs before switching executables.
 
 Run `specrelay install --global` to install the renamed skills. User-owned skills are not deleted automatically. Old releases are not required by the new updater.
 
-Release archives also include an `oz` compatibility executable for saved
+Release archives also include an `specrelay` compatibility executable for saved
 prompts and integrations that still invoke the old command. Go users can
-install it with `go install github.com/DeeliN221/specrelay/cmd/oz@latest`.
+install it with `go install github.com/DeeliN221/specrelay/cmd/specrelay@latest`.
 Both entry points run the same implementation. New projects and skills use
 `specrelay`; existing prompt text is not rewritten automatically.

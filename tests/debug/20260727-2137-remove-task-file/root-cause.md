@@ -7,7 +7,7 @@ standard 提案在创建阶段被要求生成 `task.md`，执行器又依赖复�
 ## 证据
 
 - 提案 47 合同初次运行失败，`specrelay validate` 报 standard 缺少 `task.md`。
-- `internal/ozcli` 的 validate、status、archive 直接读取任务文件或复选框。
+- `internal/specrelaycli` 的 validate、status、archive 直接读取任务文件或复选框。
 - `internal/app/stage_artifact_gate.go` 把 execution 完成绑定到 `tasks.total/tasks.done`。
 - 首轮移除文件门禁后，真实工作流测试发现 execution 会在调用执行器前被误判为已完成，证明“无文件产物”仍需明确的运行态完成信号。
 - 独立复核发现 `agent_completed` 原先晚于 Git 快照写入；快照失败会丢失执行器已成功返回的事实，恢复时重复调用执行器。
@@ -38,7 +38,7 @@ standard 提案在创建阶段被要求生成 `task.md`，执行器又依赖复�
 ## 回归测试
 
 - 提案合同覆盖 standard 无任务文件、active 任务文件拒绝、技能禁止规则和 execution artifact gate。
-- `internal/ozcli` 覆盖 status 不暴露 tasks/task artifact、archive 保留历史任务文件。
+- `internal/specrelaycli` 覆盖 status 不暴露 tasks/task artifact、archive 保留历史任务文件。
 - `internal/app` 覆盖 execution 在执行器返回前不得跳过、返回后由 `agent_completed` 放行，以及 status 使用 run state artifact。
 - `internal/app` 覆盖 runner 成功后 Git 快照失败仍先持久化完成标记，恢复检查不会重新执行 agent；同时覆盖旧 sealed task 兼容与当前运行严格拒绝。
 - 长期 shell 规格覆盖阶段 artifact 同会话重试、batch 归档产物修复续跑和默认工作流无固定外置子代理。

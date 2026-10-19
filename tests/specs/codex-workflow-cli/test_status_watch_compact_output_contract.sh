@@ -36,13 +36,13 @@ tmpdir="$(mktemp -d)"
 
 export XDG_STATE_HOME="$tmpdir/state"
 tty_repo="$tmpdir/repo"
-oz_bin="$tmpdir/wo"
+specrelay_bin="$tmpdir/wo"
 raw_capture="$result_dir/watch-tty.raw"
 screen_capture="$result_dir/watch-tty-screen.txt"
 long_change="9-这是一个非常非常长的中文提案名称用于触发窄终端自动换行并验证watch不会残留旧首行"
 
 note "Build real specrelay flow and create a narrow-TTY watch scenario"
-go build -C "$repo_root" -o "$oz_bin" ./cmd/specrelay 2>&1 | tee -a "$log"
+go build -C "$repo_root" -o "$specrelay_bin" ./cmd/specrelay 2>&1 | tee -a "$log"
 mkdir -p "$tty_repo"
 cd "$tty_repo"
 git init >/dev/null
@@ -104,7 +104,7 @@ write_json(base / "batches" / batch_id / "state.json", {
 PY
 
 note "Allocate a narrow pseudo-TTY and capture repeated watch frames"
-COLUMNS=24 timeout -s INT 3s script -q -c "$oz_bin flow watch" /dev/null >"$raw_capture" 2>/dev/null || true
+COLUMNS=24 timeout -s INT 3s script -q -c "$specrelay_bin flow watch" /dev/null >"$raw_capture" 2>/dev/null || true
 
 note "Parse terminal control sequences and reconstruct the final screen"
 python3 - "$raw_capture" "$screen_capture" "$long_change" <<'PY' 2>&1 | tee -a "$log"

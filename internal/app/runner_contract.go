@@ -144,7 +144,7 @@ func sourceGitTag() (string, error) {
 // sourceRoot locates the specrelay checkout from compiled source paths before consulting the current directory.
 func sourceRoot() (string, error) {
 	if _, file, _, ok := runtime.Caller(0); ok {
-		if root, err := ozModuleRoot(filepath.Dir(file)); err == nil {
+		if root, err := specrelayModuleRoot(filepath.Dir(file)); err == nil {
 			return root, nil
 		}
 	}
@@ -152,11 +152,11 @@ func sourceRoot() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return ozModuleRoot(wd)
+	return specrelayModuleRoot(wd)
 }
 
-// ozModuleRoot walks upward until it finds the specrelay module root.
-func ozModuleRoot(start string) (string, error) {
+// specrelayModuleRoot walks upward until it finds the specrelay module root.
+func specrelayModuleRoot(start string) (string, error) {
 	for dir := start; ; dir = filepath.Dir(dir) {
 		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err == nil && strings.Contains(string(data), "module github.com/DeeliN221/specrelay\n") {

@@ -13,8 +13,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// TestBundledOzSkillPromptsDelegateToSkills verifies agent prompts do not duplicate specrelay skill bodies.
-func TestBundledOzSkillPromptsDelegateToSkills(t *testing.T) {
+// TestBundledSpecrelaySkillPromptsDelegateToSkills verifies agent prompts do not duplicate specrelay skill bodies.
+func TestBundledSpecrelaySkillPromptsDelegateToSkills(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		mustHave   []string
@@ -85,7 +85,7 @@ func TestCommitEvidencePromptContract(t *testing.T) {
 		{stage: "archive", wants: []string{"engine", "delivery_base_head", "exactly one complete delivery commit", "Do not amend", "tests/evidence/proposals/<change>/**", "evidence", "final evidence at HEAD", "test-results/**"}},
 	}
 	defaults := defaultPromptSet()
-	rootConfigData, err := os.ReadFile(filepath.Join("..", "..", "oz-flow.yaml"))
+	rootConfigData, err := os.ReadFile(filepath.Join("..", "..", "specrelay-flow.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}

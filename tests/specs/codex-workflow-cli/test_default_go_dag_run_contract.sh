@@ -75,7 +75,7 @@ if not states:
     raise SystemExit("no specrelay flow state.json found")
 state_path = states[-1]
 state = json.loads(state_path.read_text(encoding="utf-8"))
-repo = pathlib.Path(os.environ["OZ_TEST_REPO"])
+repo = pathlib.Path(os.environ["SPECRELAY_TEST_REPO"])
 run_dir = state_path.parent
 change = state["change_name"]
 stage = state["stage"]
@@ -163,7 +163,7 @@ cat >"$project/docs/changes/1-默认内嵌工作流/acceptance.json" <<'JSON'
 }
 JSON
 
-cat >"$project/oz-flow.yaml" <<'YAML'
+cat >"$project/specrelay-flow.yaml" <<'YAML'
 max_review_iterations: 0
 YAML
 
@@ -171,7 +171,7 @@ git -C "$project" add .
 git -C "$project" commit -q -m initial
 
 note "Run the default workflow and verify a real change advances"
-OZ_TEST_REPO="$project" \
+SPECRELAY_TEST_REPO="$project" \
 XDG_STATE_HOME="$tmp/state" \
 HOME="$tmp/home" \
 PATH="$fakebin:/usr/bin:/bin" \
@@ -182,7 +182,7 @@ PATH="$fakebin:/usr/bin:/bin" \
 
 cat "$tmp/run.jsonl" >>"$log"
 
-state="$(find "$tmp/state/oz/flow/repos" -path '*/runs/*/state.json' -print | sort | tail -n 1)"
+state="$(find "$tmp/state/specrelay/flow/repos" -path '*/runs/*/state.json' -print | sort | tail -n 1)"
 test -n "$state" || fail "Missing run state.json"
 note "state: $state"
 cat "$state" >>"$log"
@@ -204,7 +204,7 @@ PY
 )"
 
 note "Verify human status contains only main stages"
-OZ_TEST_REPO="$project" \
+SPECRELAY_TEST_REPO="$project" \
 XDG_STATE_HOME="$tmp/state" \
 HOME="$tmp/home" \
 PATH="$fakebin:/usr/bin:/bin" \
@@ -216,7 +216,7 @@ if rg -q 'implementation_context|parallel-|fan-in' "$tmp/status.txt"; then
 fi
 
 note "Verify JSON status preserves the legacy runner contract"
-OZ_TEST_REPO="$project" \
+SPECRELAY_TEST_REPO="$project" \
 XDG_STATE_HOME="$tmp/state" \
 HOME="$tmp/home" \
 PATH="$fakebin:/usr/bin:/bin" \

@@ -28,8 +28,8 @@ func repoRoot(t *testing.T) string {
 	}
 }
 
-func runOz(t *testing.T, dir string, args ...string) (string, error) {
-	// runOz executes the real CLI entry point against a temporary project.
+func runSpecrelay(t *testing.T, dir string, args ...string) (string, error) {
+	// runSpecrelay executes the real CLI entry point against a temporary project.
 	t.Helper()
 	cmdArgs := append([]string{"run", "./cmd/specrelay"}, args...)
 	cmd := exec.Command("go", cmdArgs...)
@@ -41,7 +41,7 @@ func runOz(t *testing.T, dir string, args ...string) (string, error) {
 func TestSimplifiedCommandHelp(t *testing.T) {
 	// TestSimplifiedCommandHelp covers daily commands and automation interfaces in top-level help.
 	root := repoRoot(t)
-	stdout, err := runOz(t, root, "--help")
+	stdout, err := runSpecrelay(t, root, "--help")
 	if err != nil {
 		t.Fatalf("help failed: %v\n%s", err, stdout)
 	}
@@ -68,7 +68,7 @@ func TestRemovedStageCommandsFail(t *testing.T) {
 	// TestRemovedStageCommandsFail covers removed stages and keeps create from accepting stage arguments.
 	root := repoRoot(t)
 	for _, args := range [][]string{{"init"}, {"create", "需求"}, {"exec"}, {"plan"}} {
-		stdout, err := runOz(t, root, args...)
+		stdout, err := runSpecrelay(t, root, args...)
 		if err == nil {
 			t.Fatalf("%v unexpectedly succeeded:\n%s", args, stdout)
 		}

@@ -14,7 +14,7 @@ import (
 
 // TestAttachDetachedWorkerLogPersistsOutput verifies detached workers have a durable log sink.
 func TestAttachDetachedWorkerLogPersistsOutput(t *testing.T) {
-	cmd := exec.Command("oz", "flow", "resume", "--run-id", "run-1", "--json")
+	cmd := exec.Command("specrelay", "flow", "resume", "--run-id", "run-1", "--json")
 	logPath := filepath.Join(t.TempDir(), "worker.log")
 	logFile, err := attachDetachedWorkerLog(cmd, logPath)
 	if err != nil {

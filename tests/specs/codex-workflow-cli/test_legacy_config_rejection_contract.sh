@@ -22,11 +22,11 @@ fail() {
   exit 1
 }
 
-oz_bin="$tmp/wo"
+specrelay_bin="$tmp/wo"
 empty_home="$tmp/empty-home"
 mkdir -p "$empty_home"
 note "Build the real specrelay flow binary"
-go build -C "$repo_root" -o "$oz_bin" ./cmd/specrelay 2>&1 | tee -a "$log"
+go build -C "$repo_root" -o "$specrelay_bin" ./cmd/specrelay 2>&1 | tee -a "$log"
 
 init_project() {
   local project="$1"
@@ -44,13 +44,13 @@ run_rejection_case() {
   local field="$2"
   local project="$tmp/$name"
   init_project "$project"
-  cat >"$project/oz-flow.yaml"
+  cat >"$project/specrelay-flow.yaml"
 
   note "Verify rejection of legacy field:$field ($name)"
   set +e
   (
     cd "$project"
-    HOME="$empty_home" "$oz_bin" flow graph --change demo --format json
+    HOME="$empty_home" "$specrelay_bin" flow graph --change demo --format json
   ) >"$tmp/$name.out" 2>"$tmp/$name.err"
   local code=$?
   set -e
@@ -71,13 +71,13 @@ run_global_rejection_case() {
   local home="$tmp/$name-home"
   init_project "$project"
   mkdir -p "$home"
-  cat >"$home/oz-flow.yaml"
+  cat >"$home/specrelay-flow.yaml"
 
   note "Verify rejection of legacy global configuration:$field ($name)"
   set +e
   (
     cd "$project"
-    HOME="$home" "$oz_bin" flow graph --change demo --format json
+    HOME="$home" "$specrelay_bin" flow graph --change demo --format json
   ) >"$tmp/$name.out" 2>"$tmp/$name.err"
   local code=$?
   set -e

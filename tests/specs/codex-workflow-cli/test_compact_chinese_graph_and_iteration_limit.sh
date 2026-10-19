@@ -27,16 +27,16 @@ prompt_block() {
     $0 == "  " prompt_name ": |" { inside = 1; next }
     inside && /^  [a-z_]+: \|$/ { exit }
     inside { print }
-  ' "$PROJECT/oz-flow.yaml"
+  ' "$PROJECT/specrelay-flow.yaml"
 }
 
 trap cleanup EXIT
 rm -rf "$RESULT_DIR"
 mkdir -p "$RESULT_DIR"
 
-OZ_BIN="$TMP/wo"
+SPECRELAY_BIN="$TMP/wo"
 note "build real specrelay flow binary"
-(cd "$ROOT" && go build -o "$OZ_BIN" ./cmd/specrelay) >>"$RESULT_DIR/test.log" 2>&1
+(cd "$ROOT" && go build -o "$SPECRELAY_BIN" ./cmd/specrelay) >>"$RESULT_DIR/test.log" 2>&1
 
 PROJECT="$TMP/project"
 mkdir -p "$PROJECT"
@@ -50,22 +50,22 @@ mkdir -p "$PROJECT"
   git commit -qm init
 )
 
-note "generate default oz-flow.yaml with an audit iteration budget"
+note "generate default specrelay-flow.yaml with an audit iteration budget"
 (
   cd "$PROJECT"
-  "$OZ_BIN" flow config
+  "$SPECRELAY_BIN" flow config
 ) >"$RESULT_DIR/config.out" 2>"$RESULT_DIR/config.err"
-cp "$PROJECT/oz-flow.yaml" "$RESULT_DIR/oz-flow.yaml"
-if grep -q 'max_repair_iterations:' "$PROJECT/oz-flow.yaml"; then
+cp "$PROJECT/specrelay-flow.yaml" "$RESULT_DIR/specrelay-flow.yaml"
+if grep -q 'max_repair_iterations:' "$PROJECT/specrelay-flow.yaml"; then
   fail "new default config should not emit deprecated max_repair_iterations"
 fi
-if grep -q 'max_review_iterations:' "$PROJECT/oz-flow.yaml"; then
+if grep -q 'max_review_iterations:' "$PROJECT/specrelay-flow.yaml"; then
   fail "new config should not emit legacy max_review_iterations"
 fi
-grep -q '^max_audit_iterations: 3$' "$PROJECT/oz-flow.yaml" ||
+grep -q '^max_audit_iterations: 3$' "$PROJECT/specrelay-flow.yaml" ||
   fail "new default config should cap pre-QA audits at 3"
-if grep -q '^engine:' "$PROJECT/oz-flow.yaml"; then
-  fail "default oz-flow.yaml should not expose an engine field"
+if grep -q '^engine:' "$PROJECT/specrelay-flow.yaml"; then
+  fail "default specrelay-flow.yaml should not expose an engine field"
 fi
 REPAIR_PROMPT="$(prompt_block repair)"
 QA_PROMPT="$(prompt_block qa)"
@@ -77,7 +77,7 @@ rg -q 'Use an independent QA session' <<<"$QA_PROMPT"
 note "render mermaid graph and verify it is compact"
 (
   cd "$PROJECT"
-  "$OZ_BIN" flow graph --change demo --format mermaid
+  "$SPECRELAY_BIN" flow graph --change demo --format mermaid
 ) >"$RESULT_DIR/graph.mmd" 2>"$RESULT_DIR/graph.err"
 grep -q 'flowchart TD' "$RESULT_DIR/graph.mmd" || fail "mermaid graph should render a flowchart"
 

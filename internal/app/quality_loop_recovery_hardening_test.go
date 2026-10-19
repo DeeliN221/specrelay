@@ -140,7 +140,7 @@ func TestQualityEnvironmentAvailableDistinguishesBasenamePathsAndENV(t *testing.
 		t.Fatal("repository-relative basename prerequisite was not detected")
 	}
 
-	const envName = "OZ_RECOVERY_HARDENING_TOKEN"
+	const envName = "SPECRELAY_RECOVERY_HARDENING_TOKEN"
 	t.Setenv(envName, "")
 	if err := os.WriteFile(filepath.Join(repo, envName), []byte("not-an-env-value\n"), 0o600); err != nil {
 		t.Fatal(err)

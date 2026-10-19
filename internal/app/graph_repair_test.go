@@ -433,7 +433,7 @@ func TestRunGraphUsesLegacySealedWorkflow(t *testing.T) {
 	if err := saveState(repo, state); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(repo, "oz-flow.yaml"), []byte("unknown_active_config: true\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "specrelay-flow.yaml"), []byte("unknown_active_config: true\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
