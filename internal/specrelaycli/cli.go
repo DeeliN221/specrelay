@@ -2,7 +2,6 @@
 package specrelaycli
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/DeeliN221/specrelay/internal/app"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 )
 
 func Main(args []string, stdout, stderr io.Writer) int {
@@ -26,12 +26,13 @@ func (c *cli) run(args []string) int {
 	if c.now == nil {
 		c.now = time.Now
 	}
+	i18n.SetLanguage(app.EffectiveLanguageForCWD())
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
 		c.printHelp()
 		return 0
 	}
 	if args[0] == "--version" || args[0] == "-v" {
-		fmt.Fprintln(c.out, resolvedVersion())
+		i18n.Fprintln(c.out, resolvedVersion())
 		return 0
 	}
 	var err error
@@ -48,10 +49,12 @@ func (c *cli) run(args []string) int {
 		err = c.validateCmd(args[1:])
 	case "archive":
 		err = c.archiveCmd(args[1:])
+	case "language", "lang":
+		err = c.languageCmd(args[1:])
 	case "flow":
 		err = app.Run(args[1:], os.Stdin, c.out, c.err)
 	default:
-		err = fmt.Errorf("unknown command: %s", args[0])
+		err = i18n.Errorf("unknown command: %s", args[0])
 	}
 	if err != nil {
 		fmt.Fprintln(c.err, err)
@@ -62,18 +65,19 @@ func (c *cli) run(args []string) int {
 
 func (c *cli) printHelp() {
 	// printHelp separates user commands from automation interfaces.
-	fmt.Fprintln(c.out, "specrelay "+resolvedVersion())
-	fmt.Fprintln(c.out, "")
-	fmt.Fprintln(c.out, "Daily commands:")
-	fmt.Fprintln(c.out, "  list | l [--json]")
-	fmt.Fprintln(c.out, "  install | i [--global | -g]")
-	fmt.Fprintln(c.out, "  flow <status|watch|run|config|clean|...>")
-	fmt.Fprintln(c.out, "")
-	fmt.Fprintln(c.out, "Automation interface:")
-	fmt.Fprintln(c.out, "  create")
-	fmt.Fprintln(c.out, "  status <change> [--json]")
-	fmt.Fprintln(c.out, "  validate <change> [--json]")
-	fmt.Fprintln(c.out, "  archive <change> --yes")
+	i18n.Fprintln(c.out, "specrelay "+resolvedVersion())
+	i18n.Fprintln(c.out, "")
+	i18n.Fprintln(c.out, "Daily commands:")
+	i18n.Fprintln(c.out, "  list | l [--json]")
+	i18n.Fprintln(c.out, "  install | i [--global | -g]")
+	i18n.Fprintln(c.out, "  language [en|zh-CN] [--global]")
+	i18n.Fprintln(c.out, "  flow <status|watch|run|config|clean|...>")
+	i18n.Fprintln(c.out, "")
+	i18n.Fprintln(c.out, "Automation interface:")
+	i18n.Fprintln(c.out, "  create")
+	i18n.Fprintln(c.out, "  status <change> [--json]")
+	i18n.Fprintln(c.out, "  validate <change> [--json]")
+	i18n.Fprintln(c.out, "  archive <change> --yes")
 }
 
 func resolvedVersion() string {
@@ -99,7 +103,7 @@ func sourceGitTag() (string, error) {
 	}
 	top, err := exec.Command("git", "-C", root, "rev-parse", "--show-toplevel").Output()
 	if err != nil || filepath.Clean(strings.TrimSpace(string(top))) != filepath.Clean(root) {
-		return "", errors.New("module source is not its own Git checkout")
+		return "", i18n.New("module source is not its own Git checkout")
 	}
 
 	describeCmd := exec.Command("git", "-C", root, "describe", "--tags", "--always", "--dirty")
@@ -134,7 +138,7 @@ func specrelayModuleRoot(start string) (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("specrelay module root not found")
+			return "", i18n.New("specrelay module root not found")
 		}
 	}
 }

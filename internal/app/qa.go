@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/DeeliN221/specrelay/internal/acceptance"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 )
 
 // QA is the strict JSON contract used by QA stages.
@@ -207,21 +208,21 @@ func qualityEnvironmentNamesFromQA(qa QA) []string {
 // ValidateQA enforces the QA JSON schema used by the workflow.
 func ValidateQA(qa QA) error {
 	if strings.TrimSpace(qa.Summary) == "" {
-		return fmt.Errorf("qa summary must not be empty")
+		return i18n.Errorf("qa summary must not be empty")
 	}
 	if qa.Decision != "clean" && qa.Decision != "needs_fix" {
-		return fmt.Errorf("invalid QA decision %q", qa.Decision)
+		return i18n.Errorf("invalid QA decision %q", qa.Decision)
 	}
 	if qa.Decision == "clean" {
 		if len(qa.Findings) != 0 {
-			return fmt.Errorf("clean qa must not contain findings")
+			return i18n.Errorf("clean qa must not contain findings")
 		}
 		if !hasRuntimeEvidence(qa.Evidence) {
-			return fmt.Errorf("clean qa must include reviewable runtime, screenshot, trace, or end-to-end test evidence")
+			return i18n.Errorf("clean qa must include reviewable runtime, screenshot, trace, or end-to-end test evidence")
 		}
 	}
 	if qa.Decision == "needs_fix" && len(qa.Findings) == 0 {
-		return fmt.Errorf("needs_fix qa must include findings")
+		return i18n.Errorf("needs_fix qa must include findings")
 	}
 	for i, finding := range qa.Findings {
 		if err := validateFinding(finding, fmt.Sprintf("finding %d", i), false); err != nil {
@@ -235,10 +236,10 @@ func ValidateQA(qa QA) error {
 	}
 	for i, result := range qa.UserAcceptance {
 		if strings.TrimSpace(result.ScenarioID) == "" || strings.TrimSpace(result.Observed) == "" || len(result.EvidenceIDs) == 0 {
-			return fmt.Errorf("user_acceptance[%d] is incomplete", i)
+			return i18n.Errorf("user_acceptance[%d] is incomplete", i)
 		}
 		if result.Status != "passed" && result.Status != "failed" {
-			return fmt.Errorf("user_acceptance[%d].status is invalid: %s", i, result.Status)
+			return i18n.Errorf("user_acceptance[%d].status is invalid: %s", i, result.Status)
 		}
 		if err := acceptance.ValidateUserFacingText(fmt.Sprintf("user_acceptance[%d].observed", i), result.Observed); err != nil {
 			return err
@@ -264,29 +265,29 @@ func ValidateQAAgainstAcceptance(qa QA, contract Acceptance) error {
 	seen := map[string]bool{}
 	for i, result := range qa.AcceptanceMatrix {
 		if strings.TrimSpace(result.ID) == "" || strings.TrimSpace(result.Status) == "" || strings.TrimSpace(result.Evidence) == "" {
-			return fmt.Errorf("acceptance_matrix[%d] is incomplete", i)
+			return i18n.Errorf("acceptance_matrix[%d] is incomplete", i)
 		}
 		_, testOK := required.Tests[result.ID]
 		_, evidenceOK := required.Evidence[result.ID]
 		if !testOK && !evidenceOK {
-			return fmt.Errorf("acceptance_matrix[%d].id is not defined in the acceptance contract: %q", i, result.ID)
+			return i18n.Errorf("acceptance_matrix[%d].id is not defined in the acceptance contract: %q", i, result.ID)
 		}
 		if result.Status != "passed" && result.Status != "failed" {
-			return fmt.Errorf("acceptance_matrix[%d].status is invalid: %s", i, result.Status)
+			return i18n.Errorf("acceptance_matrix[%d].status is invalid: %s", i, result.Status)
 		}
 		if qa.Decision == "clean" && result.Status != "passed" {
-			return fmt.Errorf("acceptance_matrix[%d] did not pass: %s", i, result.ID)
+			return i18n.Errorf("acceptance_matrix[%d] did not pass: %s", i, result.ID)
 		}
 		seen[result.ID] = true
 	}
 	for id := range required.Tests {
 		if !seen[id] {
-			return fmt.Errorf("clean qa is missing required_tests acceptance_matrix coverage: %s", id)
+			return i18n.Errorf("clean qa is missing required_tests acceptance_matrix coverage: %s", id)
 		}
 	}
 	for id := range required.Evidence {
 		if !seen[id] {
-			return fmt.Errorf("clean qa is missing required_evidence acceptance_matrix coverage: %s", id)
+			return i18n.Errorf("clean qa is missing required_evidence acceptance_matrix coverage: %s", id)
 		}
 	}
 	return nil
@@ -305,14 +306,14 @@ func validateQAUserAcceptance(qa QA, report acceptance.DeliveryReport) error {
 	for i, result := range qa.UserAcceptance {
 		scenario, ok := scenarios[result.ScenarioID]
 		if !ok {
-			return fmt.Errorf("user_acceptance[%d].scenario_id is not defined in delivery_report: %q", i, result.ScenarioID)
+			return i18n.Errorf("user_acceptance[%d].scenario_id is not defined in delivery_report: %q", i, result.ScenarioID)
 		}
 		if seen[result.ScenarioID] {
-			return fmt.Errorf("user_acceptance[%d].scenario_id is duplicated: %q", i, result.ScenarioID)
+			return i18n.Errorf("user_acceptance[%d].scenario_id is duplicated: %q", i, result.ScenarioID)
 		}
 		seen[result.ScenarioID] = true
 		if result.Status != "passed" {
-			return fmt.Errorf("clean qa: user acceptance scenario did not pass: %s", result.ScenarioID)
+			return i18n.Errorf("clean qa: user acceptance scenario did not pass: %s", result.ScenarioID)
 		}
 		allowed := map[string]bool{}
 		for _, id := range scenario.EvidenceIDs {
@@ -321,22 +322,22 @@ func validateQAUserAcceptance(qa QA, report acceptance.DeliveryReport) error {
 		referenced := map[string]bool{}
 		for _, id := range result.EvidenceIDs {
 			if !allowed[id] {
-				return fmt.Errorf("user_acceptance[%d].evidence_ids references evidence outside the scenario: %q", i, id)
+				return i18n.Errorf("user_acceptance[%d].evidence_ids references evidence outside the scenario: %q", i, id)
 			}
 			if referenced[id] {
-				return fmt.Errorf("user_acceptance[%d].evidence_ids is duplicated: %q", i, id)
+				return i18n.Errorf("user_acceptance[%d].evidence_ids is duplicated: %q", i, id)
 			}
 			referenced[id] = true
 		}
 		for id := range allowed {
 			if !referenced[id] {
-				return fmt.Errorf("user_acceptance[%d] is missing scenario evidence: %s", i, id)
+				return i18n.Errorf("user_acceptance[%d] is missing scenario evidence: %s", i, id)
 			}
 		}
 	}
 	for id := range scenarios {
 		if !seen[id] {
-			return fmt.Errorf("clean qa is missing user acceptance scenario: %s", id)
+			return i18n.Errorf("clean qa is missing user acceptance scenario: %s", id)
 		}
 	}
 	return nil

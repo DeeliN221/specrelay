@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Add bilingual English/Simplified Chinese skills, flow prompts, and CLI output with `specrelay language [en|zh-CN]`; English remains the default.
 - Archive proposals under their numeric `<number>-<change-name>` directory without a date prefix; legacy dated archives remain readable for proposal numbering.
 
 ## [v1.0.1] - 2026-10-13

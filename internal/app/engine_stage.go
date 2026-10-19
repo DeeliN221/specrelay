@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -248,7 +249,7 @@ func qualityLoopBaseStageOption(workflow WorkflowConfig, kind string) (StageOpti
 			return option, nil
 		}
 	}
-	return StageOptions{}, fmt.Errorf("workflow config is missing dynamic stage type %q", kind)
+	return StageOptions{}, i18n.Errorf("workflow config is missing dynamic stage type %q", kind)
 }
 
 // validateStage runs configured deterministic checks before a stage may advance.

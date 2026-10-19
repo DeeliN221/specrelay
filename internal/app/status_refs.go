@@ -3,6 +3,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"strconv"
 	"strings"
@@ -51,10 +52,10 @@ func ResolveStatusTarget(repo string, args []string) (kind string, ref StatusRef
 		if len(runs) > 0 {
 			return "run", runs[0], nil
 		}
-		return "", StatusRef{}, fmt.Errorf("no specrelay flow run")
+		return "", StatusRef{}, i18n.Errorf("no specrelay flow run")
 	}
 	if len(args) != 1 {
-		return "", StatusRef{}, fmt.Errorf("Usage: specrelay flow status [-bN|-wN]")
+		return "", StatusRef{}, i18n.Errorf("Usage: specrelay flow status [-bN|-wN]")
 	}
 	arg := args[0]
 	switch {
@@ -65,7 +66,7 @@ func ResolveStatusTarget(repo string, args []string) (kind string, ref StatusRef
 		ref, err := resolveIndexedRef(repo, arg, "-w", ListRunRefs)
 		return "run", ref, err
 	default:
-		return "", StatusRef{}, fmt.Errorf("Usage: specrelay flow status [-bN|-wN]")
+		return "", StatusRef{}, i18n.Errorf("Usage: specrelay flow status [-bN|-wN]")
 	}
 }
 
@@ -97,14 +98,14 @@ func listStatusRefs(repo string, rootFn func(string) (string, error), prefix str
 func resolveIndexedRef(repo, arg, flag string, listFn func(string) ([]StatusRef, error)) (StatusRef, error) {
 	n, err := strconv.Atoi(strings.TrimPrefix(arg, flag))
 	if err != nil || n < 1 {
-		return StatusRef{}, fmt.Errorf("cannot find %s", strings.TrimPrefix(arg, "-"))
+		return StatusRef{}, i18n.Errorf("cannot find %s", strings.TrimPrefix(arg, "-"))
 	}
 	refs, err := listFn(repo)
 	if err != nil {
 		return StatusRef{}, err
 	}
 	if n > len(refs) {
-		return StatusRef{}, fmt.Errorf("cannot find %s", strings.TrimPrefix(arg, "-"))
+		return StatusRef{}, i18n.Errorf("cannot find %s", strings.TrimPrefix(arg, "-"))
 	}
 	return refs[n-1], nil
 }

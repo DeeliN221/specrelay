@@ -4,7 +4,7 @@ package app
 import (
 	"bufio"
 	"context"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"strconv"
 	"strings"
@@ -19,12 +19,12 @@ func interactive(ctx context.Context, stdin io.Reader, stdout io.Writer, repo st
 		return err
 	}
 	if batchID != "" {
-		fmt.Fprintf(stdout, "Found unfinished batch: %s\n", batchID)
-		fmt.Fprintln(stdout, "1. Resume unfinished batch")
-		fmt.Fprintln(stdout, "2. Append change proposals")
-		fmt.Fprintln(stdout, "3. Plan and append new proposals")
-		fmt.Fprintln(stdout, "4. Stop unfinished batch")
-		fmt.Fprintln(stdout, "5. Start a new execution")
+		i18n.Fprintf(stdout, "Found unfinished batch: %s\n", batchID)
+		i18n.Fprintln(stdout, "1. Resume unfinished batch")
+		i18n.Fprintln(stdout, "2. Append change proposals")
+		i18n.Fprintln(stdout, "3. Plan and append new proposals")
+		i18n.Fprintln(stdout, "4. Stop unfinished batch")
+		i18n.Fprintln(stdout, "5. Start a new execution")
 		choice, err := promptChoice(reader, stdout, 5)
 		if err != nil {
 			return err
@@ -62,13 +62,13 @@ func interactive(ctx context.Context, stdin io.Reader, stdout io.Writer, repo st
 		printStoppedHistory(stdout, repo, stoppedBatches, stopped)
 	}
 	if run != "" {
-		fmt.Fprintf(stdout, "Found unfinished run: %s\n", run)
+		i18n.Fprintf(stdout, "Found unfinished run: %s\n", run)
 		if state, err := loadState(repo, run); err == nil {
 			printHumanStageChecklist(stdout, state)
 		}
-		fmt.Fprintln(stdout, "1. Resume unfinished run")
-		fmt.Fprintln(stdout, "2. Stop unfinished run")
-		fmt.Fprintln(stdout, "3. Start a new execution")
+		i18n.Fprintln(stdout, "1. Resume unfinished run")
+		i18n.Fprintln(stdout, "2. Stop unfinished run")
+		i18n.Fprintln(stdout, "3. Start a new execution")
 		choice, err := promptChoice(reader, stdout, 3)
 		if err != nil {
 			return err
@@ -107,8 +107,8 @@ func interactive(ctx context.Context, stdin io.Reader, stdout io.Writer, repo st
 			return nil
 		}
 	} else {
-		fmt.Fprintln(stdout, "1. Start planning")
-		fmt.Fprintln(stdout, "2. Select existing changes")
+		i18n.Fprintln(stdout, "1. Start planning")
+		i18n.Fprintln(stdout, "2. Select existing changes")
 		choice, err := promptChoice(reader, stdout, 2)
 		if err != nil {
 			return err
@@ -158,7 +158,7 @@ func chooseAppendableBatchChanges(reader *bufio.Reader, stdout io.Writer, repo, 
 		return nil, err
 	}
 	if len(changes) == 0 {
-		fmt.Fprintln(stdout, "No active change proposals to append")
+		i18n.Fprintln(stdout, "No active change proposals to append")
 		return nil, nil
 	}
 	return chooseFromChanges(reader, stdout, changes)
@@ -181,7 +181,7 @@ func appendableBatchChanges(repo, batchID string) ([]Change, error) {
 func appendCandidateChanges(reader *bufio.Reader, stdout io.Writer, repo, batchID string, changes []Change) error {
 	switch len(changes) {
 	case 0:
-		fmt.Fprintln(stdout, "No active change proposals to append")
+		i18n.Fprintln(stdout, "No active change proposals to append")
 		return nil
 	case 1:
 		return appendSelectedBatchChanges(stdout, repo, batchID, changes)
@@ -204,17 +204,17 @@ func appendSelectedBatchChanges(stdout io.Writer, repo, batchID string, changes 
 		return err
 	}
 	if len(added) == 0 {
-		fmt.Fprintln(stdout, "No changes appended; selected proposals are already in the batch")
+		i18n.Fprintln(stdout, "No changes appended; selected proposals are already in the batch")
 	} else {
-		fmt.Fprintf(stdout, "Appended %d changes to batch %s\n", len(added), batchID)
+		i18n.Fprintf(stdout, "Appended %d changes to batch %s\n", len(added), batchID)
 		for _, name := range added {
-			fmt.Fprintf(stdout, "- %s\n", name)
+			i18n.Fprintf(stdout, "- %s\n", name)
 		}
 	}
 	if len(skipped) > 0 {
-		fmt.Fprintf(stdout, "Skipped %d duplicate proposals\n", len(skipped))
+		i18n.Fprintf(stdout, "Skipped %d duplicate proposals\n", len(skipped))
 		for _, name := range skipped {
-			fmt.Fprintf(stdout, "- %s\n", name)
+			i18n.Fprintf(stdout, "- %s\n", name)
 		}
 	}
 	return nil
@@ -226,9 +226,9 @@ func chooseFromChanges(reader *bufio.Reader, stdout io.Writer, changes []Change)
 		return append([]Change(nil), changes...), nil
 	}
 	for i, change := range changes {
-		fmt.Fprintf(stdout, "%d. %s\n", i+1, change.Name)
+		i18n.Fprintf(stdout, "%d. %s\n", i+1, change.Name)
 	}
-	fmt.Fprint(stdout, "> ")
+	i18n.Fprint(stdout, "> ")
 	line, err := reader.ReadString('\n')
 	if err != nil && err != io.EOF {
 		return nil, err
@@ -238,14 +238,14 @@ func chooseFromChanges(reader *bufio.Reader, stdout io.Writer, changes []Change)
 
 // promptChoice reads a one-based numeric menu selection.
 func promptChoice(reader *bufio.Reader, stdout io.Writer, max int) (int, error) {
-	fmt.Fprint(stdout, "> ")
+	i18n.Fprint(stdout, "> ")
 	line, err := reader.ReadString('\n')
 	if err != nil && err != io.EOF {
 		return 0, err
 	}
 	n, err := strconv.Atoi(strings.TrimSpace(line))
 	if err != nil || n < 1 || n > max {
-		return 0, fmt.Errorf("invalid selection")
+		return 0, i18n.Errorf("invalid selection")
 	}
 	return n, nil
 }

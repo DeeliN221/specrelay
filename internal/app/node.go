@@ -4,7 +4,7 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"path/filepath"
@@ -94,7 +94,7 @@ func (e *Engine) nodeGate(state State, args []string, stdout io.Writer) error {
 		if stage == "archive" {
 			return writeNodeResult(stdout, nodeResult{Status: "skipped", RunID: state.RunID, Stage: stage})
 		}
-		return e.failNodeState(state, fmt.Errorf("%s artifact is incomplete before the gate", stage))
+		return e.failNodeState(state, i18n.Errorf("%s artifact is incomplete before the gate", stage))
 	}
 	if err := e.advance(&state); err != nil {
 		return e.failNodeState(state, err)

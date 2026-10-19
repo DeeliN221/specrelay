@@ -3,7 +3,7 @@ package app
 
 import (
 	"context"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os/exec"
 	"path/filepath"
 )
@@ -12,7 +12,7 @@ import (
 func repoRelPath(repo, absolutePath string) (string, error) {
 	rel, err := filepath.Rel(repo, absolutePath)
 	if err != nil {
-		return "", fmt.Errorf("generate repository-relative path failed: %w", err)
+		return "", i18n.Errorf("generate repository-relative path failed: %w", err)
 	}
 	return filepath.ToSlash(rel), nil
 }
@@ -26,7 +26,7 @@ func repoAbsPath(repo, statePath string) string {
 func resolveCommand(name string) (string, error) {
 	path, err := exec.LookPath(name)
 	if err != nil {
-		return "", fmt.Errorf("cannot find the %s executable: %w", name, err)
+		return "", i18n.Errorf("cannot find the %s executable: %w", name, err)
 	}
 	return path, nil
 }

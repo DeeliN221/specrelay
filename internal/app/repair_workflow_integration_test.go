@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"github.com/DeeliN221/specrelay/internal/testsupport"
 )
 
@@ -601,7 +602,7 @@ func TestLegacyRepairWorkflowResumeEvidence(t *testing.T) {
 	if err := saveState(repo, state); err != nil {
 		t.Fatal(err)
 	}
-	prompts := defaultPromptSet()
+	prompts := defaultPromptSet(i18n.English)
 	legacySnapshot := map[string]any{"prompts": map[string]string{
 		"planning":  prompts["planning"],
 		"execution": prompts["execution"],

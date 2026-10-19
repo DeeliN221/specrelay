@@ -1,5 +1,6 @@
 # Agent options: codex, pi, agy, claude. For Claude, select an available model
 # and a supported reasoning level (low, medium, high, xhigh).
+language: en
 max_audit_iterations: 3
 stages:
   planning:

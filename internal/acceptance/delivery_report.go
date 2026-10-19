@@ -4,6 +4,7 @@ package acceptance
 import (
 	"bytes"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -48,18 +49,18 @@ type DeliveryObservation struct {
 func ValidateUserFacingText(label, text string) error {
 	trimmed := strings.TrimSpace(text)
 	if utf8.RuneCountInString(trimmed) < 6 {
-		return fmt.Errorf("%s must describe specific user-visible behavior", label)
+		return i18n.Errorf("%s must describe specific user-visible behavior", label)
 	}
 	if strings.ContainsAny(trimmed, "\r\n") {
-		return fmt.Errorf("%s must be a clear, readable statement", label)
+		return i18n.Errorf("%s must be a clear, readable statement", label)
 	}
 	if weakReviewerText.MatchString(trimmed) || commandOnlyText.MatchString(trimmed) {
-		return fmt.Errorf("%s must not contain only test results, commands, or placeholders: %q", label, text)
+		return i18n.Errorf("%s must not contain only test results, commands, or placeholders: %q", label, text)
 	}
 	lower := strings.ToLower(trimmed)
 	for _, term := range reviewerInternalTerms {
 		if strings.Contains(lower, term) {
-			return fmt.Errorf("%s must not substitute internal fields for user-visible results: %s", label, term)
+			return i18n.Errorf("%s must not substitute internal fields for user-visible results: %s", label, term)
 		}
 	}
 	return nil
@@ -68,48 +69,48 @@ func ValidateUserFacingText(label, text string) error {
 // validateDeliveryReportContract requires benefits, review steps, evidence, and paired repair comparisons.
 func validateDeliveryReportContract(report DeliveryReport, evidenceByID map[string]Evidence) error {
 	if len(report.UserBenefits) == 0 {
-		return fmt.Errorf("delivery_report.user_benefits must describe at least one user benefit or improvement")
+		return i18n.Errorf("delivery_report.user_benefits must describe at least one user benefit or improvement")
 	}
 	for i, benefit := range report.UserBenefits {
-		if err := ValidateUserFacingText(fmt.Sprintf("delivery_report.user_benefits[%d]", i), benefit); err != nil {
+		if err := ValidateUserFacingText(i18n.Sprintf("delivery_report.user_benefits[%d]", i), benefit); err != nil {
 			return err
 		}
 	}
 	for i, prerequisite := range report.Prerequisites {
-		if err := ValidateUserFacingText(fmt.Sprintf("delivery_report.prerequisites[%d]", i), prerequisite); err != nil {
+		if err := ValidateUserFacingText(i18n.Sprintf("delivery_report.prerequisites[%d]", i), prerequisite); err != nil {
 			return err
 		}
 	}
 	for i, limit := range report.KnownLimits {
-		if err := ValidateUserFacingText(fmt.Sprintf("delivery_report.known_limits[%d]", i), limit); err != nil {
+		if err := ValidateUserFacingText(i18n.Sprintf("delivery_report.known_limits[%d]", i), limit); err != nil {
 			return err
 		}
 	}
 	if len(report.Scenarios) == 0 {
-		return fmt.Errorf("delivery_report.scenarios must include at least one user acceptance scenario")
+		return i18n.Errorf("delivery_report.scenarios must include at least one user acceptance scenario")
 	}
 	seenScenario := map[string]bool{}
 	hasDemo := false
 	for i, scenario := range report.Scenarios {
-		prefix := fmt.Sprintf("delivery_report.scenarios[%d]", i)
+		prefix := i18n.Sprintf("delivery_report.scenarios[%d]", i)
 		if strings.TrimSpace(scenario.ID) == "" || strings.TrimSpace(scenario.Title) == "" {
-			return fmt.Errorf("%s.id and title must not be empty", prefix)
+			return i18n.Errorf("%s.id and title must not be empty", prefix)
 		}
 		if seenScenario[scenario.ID] {
-			return fmt.Errorf("%s.id is duplicated: %q", prefix, scenario.ID)
+			return i18n.Errorf("%s.id is duplicated: %q", prefix, scenario.ID)
 		}
 		seenScenario[scenario.ID] = true
 		if err := ValidateUserFacingText(prefix+".user_value", scenario.UserValue); err != nil {
 			return err
 		}
 		if len(scenario.Steps) == 0 {
-			return fmt.Errorf("%s.steps must include at least one step a reviewer can perform", prefix)
+			return i18n.Errorf("%s.steps must include at least one step a reviewer can perform", prefix)
 		}
 		for j, step := range scenario.Steps {
-			if err := ValidateUserFacingText(fmt.Sprintf("%s.steps[%d].action", prefix, j), step.Action); err != nil {
+			if err := ValidateUserFacingText(i18n.Sprintf("%s.steps[%d].action", prefix, j), step.Action); err != nil {
 				return err
 			}
-			if err := ValidateUserFacingText(fmt.Sprintf("%s.steps[%d].expected", prefix, j), step.Expected); err != nil {
+			if err := ValidateUserFacingText(i18n.Sprintf("%s.steps[%d].expected", prefix, j), step.Expected); err != nil {
 				return err
 			}
 		}
@@ -132,7 +133,7 @@ func validateDeliveryReportContract(report DeliveryReport, evidenceByID map[stri
 		}
 	}
 	if !hasDemo {
-		return fmt.Errorf("at least one delivery_report scenario must directly reference demo_video")
+		return i18n.Errorf("at least one delivery_report scenario must directly reference demo_video")
 	}
 	return nil
 }
@@ -140,15 +141,15 @@ func validateDeliveryReportContract(report DeliveryReport, evidenceByID map[stri
 // validateDeliveryEvidenceIDs binds a reviewer scenario to declared runtime evidence.
 func validateDeliveryEvidenceIDs(label string, ids []string, evidenceByID map[string]Evidence) (map[string]bool, error) {
 	if len(ids) == 0 {
-		return nil, fmt.Errorf("%s must reference at least one directly reviewable evidence item", label)
+		return nil, i18n.Errorf("%s must reference at least one directly reviewable evidence item", label)
 	}
 	seen := map[string]bool{}
 	for i, id := range ids {
 		if _, ok := evidenceByID[id]; !ok {
-			return nil, fmt.Errorf("%s[%d] references unknown required_evidence: %q", label, i, id)
+			return nil, i18n.Errorf("%s[%d] references unknown required_evidence: %q", label, i, id)
 		}
 		if seen[id] {
-			return nil, fmt.Errorf("%s[%d] is duplicated: %q", label, i, id)
+			return nil, i18n.Errorf("%s[%d] is duplicated: %q", label, i, id)
 		}
 		seen[id] = true
 	}
@@ -164,23 +165,23 @@ func validateDeliveryComparison(label string, comparison DeliveryComparison, sce
 		return err
 	}
 	if normalizedReviewerClaim(comparison.Before) == normalizedReviewerClaim(comparison.After) {
-		return fmt.Errorf("%s before and after must describe different user-visible behavior", label)
+		return i18n.Errorf("%s before and after must describe different user-visible behavior", label)
 	}
 	if comparison.BeforeEvidenceID == "" || comparison.AfterEvidenceID == "" {
-		return fmt.Errorf("%s must provide both before_evidence_id and after_evidence_id", label)
+		return i18n.Errorf("%s must provide both before_evidence_id and after_evidence_id", label)
 	}
 	if comparison.BeforeEvidenceID == comparison.AfterEvidenceID {
-		return fmt.Errorf("%s before and after evidence must be different files", label)
+		return i18n.Errorf("%s before and after evidence must be different files", label)
 	}
 	for field, id := range map[string]string{
 		"before_evidence_id": comparison.BeforeEvidenceID,
 		"after_evidence_id":  comparison.AfterEvidenceID,
 	} {
 		if _, ok := evidenceByID[id]; !ok {
-			return fmt.Errorf("%s.%s references unknown required_evidence: %q", label, field, id)
+			return i18n.Errorf("%s.%s references unknown required_evidence: %q", label, field, id)
 		}
 		if !scenarioEvidence[id] {
-			return fmt.Errorf("%s.%s must also be included in the scenario evidence_ids: %q", label, field, id)
+			return i18n.Errorf("%s.%s must also be included in the scenario evidence_ids: %q", label, field, id)
 		}
 	}
 	return nil
@@ -198,10 +199,10 @@ func RenderDeliveryReport(contract Contract, changeName string, observations []D
 	}
 	for _, item := range observations {
 		if !scenarios[item.ScenarioID] {
-			return nil, fmt.Errorf("final QA references an unknown delivery scenario: %s", item.ScenarioID)
+			return nil, i18n.Errorf("final QA references an unknown delivery scenario: %s", item.ScenarioID)
 		}
 		if _, duplicate := observedByScenario[item.ScenarioID]; duplicate {
-			return nil, fmt.Errorf("delivery report contains a duplicate observed scenario: %s", item.ScenarioID)
+			return nil, i18n.Errorf("delivery report contains a duplicate observed scenario: %s", item.ScenarioID)
 		}
 		if err := ValidateUserFacingText("delivery report observed result", item.Observed); err != nil {
 			return nil, err
@@ -228,7 +229,7 @@ func RenderDeliveryReport(contract Contract, changeName string, observations []D
 	for index, scenario := range report.Scenarios {
 		observed, ok := observedByScenario[scenario.ID]
 		if !ok {
-			return nil, fmt.Errorf("final QA is missing an actual observation for delivery scenario %q", scenario.ID)
+			return nil, i18n.Errorf("final QA is missing an actual observation for delivery scenario %q", scenario.ID)
 		}
 		fmt.Fprintf(&out, "\n### %d. %s\n\n", index+1, strings.TrimSpace(scenario.Title))
 		fmt.Fprintf(&out, "- User value: %s\n", strings.TrimSpace(scenario.UserValue))
@@ -291,7 +292,7 @@ func ValidateDeliveryReportFileForChange(projectRoot string, contract Contract, 
 		return err
 	}
 	if !utf8.Valid(data) || len(bytes.TrimSpace(data)) < 256 {
-		return fmt.Errorf("%s must be a complete, readable UTF-8 delivery report", relative)
+		return i18n.Errorf("%s must be a complete, readable UTF-8 delivery report", relative)
 	}
 	text := string(data)
 	// Accept existing translated reports while generating English by default.
@@ -303,13 +304,13 @@ func ValidateDeliveryReportFileForChange(projectRoot string, contract Contract, 
 		{"## Known limitations", "## 已知限制"},
 	} {
 		if !strings.Contains(text, headings[0]) && !strings.Contains(text, headings[1]) {
-			return fmt.Errorf("%s is missing a review section: %s", relative, headings[0])
+			return i18n.Errorf("%s is missing a review section: %s", relative, headings[0])
 		}
 	}
 	report := *contract.DeliveryReport
 	for _, benefit := range report.UserBenefits {
 		if !strings.Contains(text, strings.TrimSpace(benefit)) {
-			return fmt.Errorf("%s is missing a user benefit: %s", relative, benefit)
+			return i18n.Errorf("%s is missing a user benefit: %s", relative, benefit)
 		}
 	}
 	for _, scenario := range report.Scenarios {
@@ -318,27 +319,27 @@ func ValidateDeliveryReportFileForChange(projectRoot string, contract Contract, 
 			"user_value": scenario.UserValue,
 		} {
 			if !strings.Contains(text, strings.TrimSpace(expected)) {
-				return fmt.Errorf("%s is missing scenario %s: %s", relative, label, expected)
+				return i18n.Errorf("%s is missing scenario %s: %s", relative, label, expected)
 			}
 		}
 		for _, step := range scenario.Steps {
 			if !strings.Contains(text, strings.TrimSpace(step.Action)) || !strings.Contains(text, strings.TrimSpace(step.Expected)) {
-				return fmt.Errorf("%s does not include all actions and visible outcomes for scenario %q", relative, scenario.Title)
+				return i18n.Errorf("%s does not include all actions and visible outcomes for scenario %q", relative, scenario.Title)
 			}
 		}
 	}
 	for _, item := range contract.SubmissionEvidence {
 		link := deliveryEvidenceRelativePath(item.ArchivePath)
 		if !strings.Contains(text, link) && !strings.Contains(text, deliveryURLPath(link)) {
-			return fmt.Errorf("%s does not link evidence %q", relative, item.EvidenceID)
+			return i18n.Errorf("%s does not link evidence %q", relative, item.EvidenceID)
 		}
 	}
 	observed := regexp.MustCompile(`(?m)^- (?:Observed: |实测：)(.+)$`).FindAllStringSubmatch(text, -1)
 	if len(observed) != len(report.Scenarios) {
-		return fmt.Errorf("%s must include one actual observation per user acceptance scenario", relative)
+		return i18n.Errorf("%s must include one actual observation per user acceptance scenario", relative)
 	}
 	for i, match := range observed {
-		if err := ValidateUserFacingText(fmt.Sprintf("%s observed result[%d]", relative, i), match[1]); err != nil {
+		if err := ValidateUserFacingText(i18n.Sprintf("%s observed result[%d]", relative, i), match[1]); err != nil {
 			return err
 		}
 	}
@@ -366,7 +367,7 @@ func deliveryEvidenceLinks(ids []string, archiveByID map[string]string, evidence
 // deliveryEvidenceLink renders one artifact using a reviewer-facing label instead of an internal ID.
 func deliveryEvidenceLink(id, label string, archiveByID map[string]string) string {
 	relative := deliveryEvidenceRelativePath(archiveByID[id])
-	return fmt.Sprintf("[%s](%s)", strings.TrimSpace(label), deliveryURLPath(relative))
+	return i18n.Sprintf("[%s](%s)", strings.TrimSpace(label), deliveryURLPath(relative))
 }
 
 // deliveryEvidenceRelativePath removes the stable proposal package prefix from an archive path.

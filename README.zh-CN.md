@@ -93,10 +93,14 @@ flowchart LR
 go install github.com/DeeliN221/specrelay@latest
 specrelay install --global
 specrelay flow config
+# 可选：把技能、flow 提示词和 CLI 输出切换为中文
+specrelay language zh-CN
 # 唤起coding-agent比如codex/pi/agy/claude，要求创建新提案，完成后退出
 specrelay flow run
 specrelay flow watch
 ```
+
+默认语言是英文。运行 `specrelay language zh-CN` 可把内置技能、flow 默认提示词和 CLI 帮助/状态/错误输出切换为中文；加 `--global` 会写入 `~/specrelay-flow.yaml`，否则写入项目配置。无参数运行 `specrelay language` 输出当前语言。`specrelay-flow.yaml` 中已自定义的提示词会保留，只有未改动的内置默认值会跟随语言切换。
 
 `specrelay-flow.yaml` 的配置合并顺序是：
 

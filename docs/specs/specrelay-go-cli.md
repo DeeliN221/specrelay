@@ -4,13 +4,19 @@ This document defines the default English command contract. The [Chinese specifi
 
 ## Commands
 
-The CLI MUST expose `list | l [--json]` and `install | i [--global | -g]` as daily commands. Automation retains `create`, `status <change> [--json]`, `validate <change> [--json]`, and `archive <change> --yes`. `flow` exposes the workflow runner. Removed top-level `init`, `plan`, and `exec` commands MUST fail.
+The CLI MUST expose `list | l [--json]`, `install | i [--global | -g]`, and `language [en|zh-CN] [--global] [--json]` as daily commands. Automation retains `create`, `status <change> [--json]`, `validate <change> [--json]`, and `archive <change> --yes`. `flow` exposes the workflow runner. Removed top-level `init`, `plan`, and `exec` commands MUST fail.
 
 `specrelay create` MUST return the next numeric proposal identifier without creating a directory or files. The maximum number is computed across active and archived proposals. `specrelay create` MUST NOT accept a proposal-name argument.
 
 Proposal directories MUST use a numeric prefix only: `docs/changes/<number>-<description>` while active and `docs/changes/archive/<number>-<description>` after archiving. New archives MUST NOT add a date prefix. Number scanning MUST still read legacy `YYYY-MM-DD-<number>-<description>` archives so existing repositories keep correct numbering, but a date-prefixed directory directly under `docs/changes/` MUST be rejected by `create`, `status`, `validate`, and `archive` instead of being counted as proposal number `YYYY`.
 
 Default help, statuses, diagnostics, generated delivery reports, and bundled instructions MUST be English. JSON keys and machine status values MUST remain stable. Change names MUST accept English and Unicode letters, digits, and hyphens while rejecting path separators, spaces, and a leading hyphen. Numbered active changes use `<positive-number>-<description>`.
+
+### Language
+
+English is the default user-visible language; `zh-CN` is the other supported language. `specrelay language` with no value MUST print the effective language. With a value it MUST persist `language` in the repository `specrelay-flow.yaml` (or `~/specrelay-flow.yaml` with `--global`), creating the configuration file when absent. Language resolution order is repository configuration, user-level configuration, then English.
+
+The effective language MUST select the bundled `SKILL.md` variant installed by `specrelay install`, the default flow prompts written by `specrelay flow config`, and CLI help, status, and error output. Switching language MUST refresh skill directories that are already installed for the project and user. User-customized prompts MUST be preserved; untouched built-in prompt defaults MUST follow the selected language. Machine-readable JSON keys and status values MUST remain stable English identifiers.
 
 ## Change sizes
 

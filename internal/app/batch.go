@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,11 +37,11 @@ type BatchState struct {
 func withBatchState(repo, batchID string, fn func(*BatchState) error) error {
 	lockPath := batchDir(repo, batchID) + ".lock"
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
-		return fmt.Errorf("create batch directory failed: %w", err)
+		return i18n.Errorf("create batch directory failed: %w", err)
 	}
 	unlock, err := flockLock(lockPath)
 	if err != nil {
-		return fmt.Errorf("acquire batch lock failed: %w", err)
+		return i18n.Errorf("acquire batch lock failed: %w", err)
 	}
 	defer unlock()
 	batch, err := loadBatchState(repo, batchID)
@@ -87,7 +88,7 @@ func (e *Engine) SubmitBatch(ctx context.Context, changes []Change) error {
 func AppendBatchChanges(repo, batchID string, changes []Change) (added []string, skipped []string, err error) {
 	activeChanges, err := ListChanges(repo)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read active changes failed: %w", err)
+		return nil, nil, i18n.Errorf("read active changes failed: %w", err)
 	}
 	activeMap := map[string]bool{}
 	for _, c := range activeChanges {
@@ -97,13 +98,13 @@ func AppendBatchChanges(repo, batchID string, changes []Change) (added []string,
 		if batch.Status != batchStatusRunning {
 			switch batch.Status {
 			case batchStatusDone:
-				return fmt.Errorf("batch is complete; start a new batch")
+				return i18n.Errorf("batch is complete; start a new batch")
 			case batchStatusFailed:
-				return fmt.Errorf("batch has failed; resolve the failure or start a new batch")
+				return i18n.Errorf("batch has failed; resolve the failure or start a new batch")
 			case batchStatusAborted:
-				return fmt.Errorf("batch was stopped; cannot append changes")
+				return i18n.Errorf("batch was stopped; cannot append changes")
 			default:
-				return fmt.Errorf("cannot append to a batch with status %s", batch.Status)
+				return i18n.Errorf("cannot append to a batch with status %s", batch.Status)
 			}
 		}
 		existing := map[string]bool{}
@@ -117,7 +118,7 @@ func AppendBatchChanges(repo, batchID string, changes []Change) (added []string,
 				continue
 			}
 			if !activeMap[c.Name] {
-				return fmt.Errorf("proposal %s does not exist or is archived", c.Name)
+				return i18n.Errorf("proposal %s does not exist or is archived", c.Name)
 			}
 			newChanges = append(newChanges, c)
 		}
@@ -156,7 +157,7 @@ func (e *Engine) RunBatch(ctx context.Context, batchID string) error {
 		return err
 	}
 	if batch.Status != batchStatusRunning {
-		return fmt.Errorf("batch %s with status %s cannot continue directly; use specrelay flow restart", batchID, batch.Status)
+		return i18n.Errorf("batch %s with status %s cannot continue directly; use specrelay flow restart", batchID, batch.Status)
 	}
 	for {
 		for batch.Status == batchStatusRunning && batch.CurrentIndex < len(batch.Changes) {
@@ -197,7 +198,7 @@ func (e *Engine) RunBatch(ctx context.Context, batchID string) error {
 			} else if isRecoverableQualityLoopBlock(state) {
 				return nil
 			} else if isBatchTerminalState(state) {
-				return e.failBatch(batch.BatchID, changeName, runID, fmt.Errorf("run %s stopped: %s/%s", runID, state.Status, state.Stage))
+				return e.failBatch(batch.BatchID, changeName, runID, i18n.Errorf("run %s stopped: %s/%s", runID, state.Status, state.Stage))
 			} else {
 				if err := e.resumeRun(ctx, runID, true, nil); err != nil {
 					if isRunLockedError(err) {
@@ -563,7 +564,7 @@ func batchCleanupPath(repo, batchID string) string {
 func startDetachedBatchResumeCommand(repo, batchID string) error {
 	exe, err := currentExecutable()
 	if err != nil {
-		return fmt.Errorf("resolve specrelay flow executable failed: %w", err)
+		return i18n.Errorf("resolve specrelay flow executable failed: %w", err)
 	}
 	cmd := exec.Command(exe, flowWorkerCommandArgs("batch", "--batch-id", batchID, "--json")...)
 	cmd.Dir = repo

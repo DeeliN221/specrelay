@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -346,7 +347,7 @@ func (e *Engine) rerouteQualityLoopQAOnAcceptanceDrift(state *State, cause error
 func qualityLoopQACheckpointDiffHash(state State) (string, string, error) {
 	stage, err := parseWorkflowStage(state.Stage)
 	if err != nil || !stage.isKind(workflowStageQA) {
-		return "", "", fmt.Errorf("stage %q is not quality-loop QA", state.Stage)
+		return "", "", i18n.Errorf("stage %q is not quality-loop QA", state.Stage)
 	}
 	checkpoint := ""
 	if stage.Iteration > 1 {
@@ -368,15 +369,15 @@ func qualityLoopQACheckpointDiffHash(state State) (string, string, error) {
 		}
 	}
 	if checkpoint == "" || state.Stages[checkpoint] != "completed" {
-		return "", "", fmt.Errorf("%s is missing the latest completed repair/audit gate", state.Stage)
+		return "", "", i18n.Errorf("%s is missing the latest completed repair/audit gate", state.Stage)
 	}
 	validation := state.Validation[checkpoint]
 	acceptance := state.AcceptanceRun[checkpoint]
 	if validation.Status != validationStatusPassed || acceptance.Status != validationStatusPassed {
-		return "", "", fmt.Errorf("%s:  %s has not passed validation and acceptance gates", state.Stage, checkpoint)
+		return "", "", i18n.Errorf("%s:  %s has not passed validation and acceptance gates", state.Stage, checkpoint)
 	}
 	if validation.DiffHash == "" || acceptance.DiffHash == "" || validation.DiffHash != acceptance.DiffHash {
-		return "", "", fmt.Errorf("%s:  %s is missing a consistent tested-diff binding", state.Stage, checkpoint)
+		return "", "", i18n.Errorf("%s:  %s is missing a consistent tested-diff binding", state.Stage, checkpoint)
 	}
 	return checkpoint, validation.DiffHash, nil
 }
@@ -397,12 +398,12 @@ func qualityLoopCheckpointTrustHash(repo string, state State, checkpoint string)
 	validation := state.Validation[checkpoint]
 	validationData, err := readQualityValidationArtifact(validation.LastArtifact)
 	if err != nil {
-		return "", fmt.Errorf("%s validation checkpoint cannot be read: %w", checkpoint, err)
+		return "", i18n.Errorf("%s validation checkpoint cannot be read: %w", checkpoint, err)
 	}
 	acceptance := state.AcceptanceRun[checkpoint]
 	acceptanceData, err := readSealedAcceptanceArtifact(acceptance.LastArtifact)
 	if err != nil {
-		return "", fmt.Errorf("%s acceptance checkpoint cannot be read: %w", checkpoint, err)
+		return "", i18n.Errorf("%s acceptance checkpoint cannot be read: %w", checkpoint, err)
 	}
 	return qualityHashStrings(string(validationData), string(acceptanceData)), nil
 }
@@ -486,26 +487,26 @@ func (e *Engine) verifyQualityLoopArchiveReadOnlyGate(state *State) (bool, error
 func verifyQualityLoopTrustedFinalQA(repo string, state State) error {
 	iteration := latestCompletedQAIteration(state)
 	if iteration < 1 {
-		return fmt.Errorf("archive gate is missing completed independent QA")
+		return i18n.Errorf("archive gate is missing completed independent QA")
 	}
 	stage := fmt.Sprintf("qa_%d", iteration)
 	path := filepath.Join(runDir(repo, state.RunID), fmt.Sprintf("qa-%d.json", iteration))
 	qa, err := ReadQA(path)
 	if err != nil {
-		return fmt.Errorf("archive gate failed to read final QA: %w", err)
+		return i18n.Errorf("archive gate failed to read final QA: %w", err)
 	}
 	contract, err := readAcceptanceForState(repo, state)
 	if err != nil {
-		return fmt.Errorf("archive gate failed to read sealed acceptance: %w", err)
+		return i18n.Errorf("archive gate failed to read sealed acceptance: %w", err)
 	}
 	if err := ValidateQAAgainstAcceptance(qa, contract); err != nil {
-		return fmt.Errorf("archive gate final QA does not cover sealed acceptance: %w", err)
+		return i18n.Errorf("archive gate final QA does not cover sealed acceptance: %w", err)
 	}
 	if QANeedsFix(qa) {
-		return fmt.Errorf("archive gate final QA still needs repair")
+		return i18n.Errorf("archive gate final QA still needs repair")
 	}
 	if !qualityLoopTrustedSourceQA(repo, state, stage, qa) {
-		return fmt.Errorf("archive gate final QA failed tested-input trust validation")
+		return i18n.Errorf("archive gate final QA failed tested-input trust validation")
 	}
 	return nil
 }
@@ -514,7 +515,7 @@ func verifyQualityLoopTrustedFinalQA(repo string, state State) error {
 func qualityLoopArchiveCheckpointStage(state State) (string, error) {
 	iteration := latestCompletedQAIteration(state)
 	if iteration < 1 {
-		return "", fmt.Errorf("archive gate is missing completed independent QA")
+		return "", i18n.Errorf("archive gate is missing completed independent QA")
 	}
 	probe := state
 	probe.Stage = fmt.Sprintf("qa_%d", iteration)
@@ -552,7 +553,7 @@ func qualityLoopArchiveInvariantSnapshot(repo string, state State) (string, erro
 		return "", err
 	}
 	if len(payloadEntries) == 0 {
-		return "", fmt.Errorf("archive gate cannot find proposal content: %s", payloadDir)
+		return "", i18n.Errorf("archive gate cannot find proposal content: %s", payloadDir)
 	}
 	sort.Strings(entries)
 	sourceHash := qualityHashStrings(entries...)
@@ -566,7 +567,7 @@ func qualityLoopArchiveInvariantSnapshot(repo string, state State) (string, erro
 	}
 	evidenceHash := acceptanceResult.EvidenceHash
 	if state.QualityLoop.EvidenceHash == "" || evidenceHash != state.QualityLoop.EvidenceHash {
-		return "", fmt.Errorf("archive gate required evidence differs from the latest passing acceptance")
+		return "", i18n.Errorf("archive gate required evidence differs from the latest passing acceptance")
 	}
 	return qualityHashStrings(sourceHash, evidenceHash), nil
 }
@@ -651,7 +652,7 @@ func qualityLoopArchivePayloadDir(repo, changeName string) (string, error) {
 		return "", err
 	}
 	if len(matches) == 0 {
-		return "", fmt.Errorf("archive gate cannot find the active or archived proposal %q", changeName)
+		return "", i18n.Errorf("archive gate cannot find the active or archived proposal %q", changeName)
 	}
 	return matches[len(matches)-1], nil
 }
@@ -659,7 +660,7 @@ func qualityLoopArchivePayloadDir(repo, changeName string) (string, error) {
 // blockQualityLoopArchiveReadOnly records a recoverable archive boundary violation.
 func (e *Engine) blockQualityLoopArchiveReadOnly(state *State, reason string) error {
 	if state == nil {
-		return fmt.Errorf("archive read-only gate is missing state")
+		return i18n.Errorf("archive read-only gate is missing state")
 	}
 	stage := state.Stage
 	if state.ArtifactGates == nil {
@@ -722,7 +723,7 @@ func (e *Engine) blockQualityLoopArchiveReadOnly(state *State, reason string) er
 // rerouteQualityLoopArchiveRepair lets the repairer fix deterministic evidence packaging failures before a fresh QA.
 func (e *Engine) rerouteQualityLoopArchiveRepair(state *State, reason string) error {
 	if state == nil {
-		return fmt.Errorf("archive evidence repair is missing state")
+		return i18n.Errorf("archive evidence repair is missing state")
 	}
 	fingerprint := qualityHashStrings(validationKindArchiveRepair, strings.TrimSpace(reason))
 	if state.QualityLoop.ArchiveGateFingerprint == fingerprint {
@@ -754,7 +755,7 @@ func isQualityLoopArchiveStage(state State) bool {
 // blockQualityLoopQAReadOnly persists an observable, recoverable stop at the exact QA stage.
 func (e *Engine) blockQualityLoopQAReadOnly(state *State, currentHash, reason string) error {
 	if state == nil {
-		return fmt.Errorf("QA read-only gate is missing state")
+		return i18n.Errorf("QA read-only gate is missing state")
 	}
 	stage := state.Stage
 	if state.ArtifactGates == nil {
@@ -889,13 +890,13 @@ func failedGateProgressLabel(state State) string {
 // nodeStageGateError converts a pipeline stop into the node contract's error style.
 func nodeStageGateError(stage string, result stageGatePipelineResult) error {
 	if !result.Done {
-		return fmt.Errorf("%s stage artifact is incomplete", stage)
+		return i18n.Errorf("%s stage artifact is incomplete", stage)
 	}
 	if result.Blocked {
 		if result.ProgressLabel == "blocked" {
-			return fmt.Errorf("%s gate blocked", stage)
+			return i18n.Errorf("%s gate blocked", stage)
 		}
-		return fmt.Errorf("%s validation did not pass", stage)
+		return i18n.Errorf("%s validation did not pass", stage)
 	}
 	return nil
 }

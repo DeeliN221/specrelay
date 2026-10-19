@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	promptstemplate "github.com/DeeliN221/specrelay/prompts-template"
 	"gopkg.in/yaml.v3"
 )
@@ -40,6 +41,7 @@ type StageOptions struct {
 type WorkflowConfig struct {
 	Engine              string                  `json:"engine,omitempty" yaml:"-"`
 	Generation          string                  `json:"generation,omitempty" yaml:"-"`
+	Language            i18n.Language           `json:"language,omitempty" yaml:"language,omitempty"`
 	MaxAuditIterations  int                     `json:"max_audit_iterations,omitempty" yaml:"max_audit_iterations"`
 	MaxRepairIterations int                     `json:"max_repair_iterations,omitempty" yaml:"max_repair_iterations"`
 	MaxReviewIterations int                     `json:"max_review_iterations,omitempty" yaml:"max_review_iterations,omitempty"`
@@ -87,8 +89,16 @@ type ValidationCommand struct {
 	Args       []string `json:"args,omitempty" yaml:"args"`
 }
 
-// DefaultWorkflowConfigYAML is kept for tests that compare the generated config text.
-var DefaultWorkflowConfigYAML = mustDefaultWorkflowConfigYAML()
+// DefaultWorkflowConfigYAML is the built-in English configuration used without a YAML file.
+var DefaultWorkflowConfigYAML = DefaultWorkflowConfigYAMLFor(i18n.English)
+
+// DefaultWorkflowConfigYAMLFor renders the built-in configuration with prompts in the selected language.
+func DefaultWorkflowConfigYAMLFor(language i18n.Language) string {
+	if language != i18n.SimplifiedChinese {
+		language = i18n.English
+	}
+	return mustDefaultWorkflowConfigYAML(language)
+}
 
 // LoadWorkflowConfig reads specrelay-flow.yaml or specrelay-flow.yml and returns an expanded effective config.
 func LoadWorkflowConfig(repo string) (WorkflowConfig, error) {
@@ -144,7 +154,7 @@ func (c WorkflowConfig) StageOption(stage string) (StageOptions, error) {
 			}
 		}
 	}
-	return StageOptions{}, fmt.Errorf("workflow config is missing stage %q", stage)
+	return StageOptions{}, i18n.Errorf("workflow config is missing stage %q", stage)
 }
 
 // workflowStagesForConfig returns the initial quality-loop stages or expands a sealed finite snapshot.
@@ -190,9 +200,114 @@ func usesRepairWorkflow(config WorkflowConfig) bool {
 func globalWorkflowConfigPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("resolve user home directory failed: %w", err)
+		return "", i18n.Errorf("resolve user home directory failed: %w", err)
 	}
 	return filepath.Join(home, "specrelay-flow.yaml"), nil
+}
+
+// EffectiveLanguage returns the project language, then the user-level language, then English.
+func EffectiveLanguage(repo string) i18n.Language {
+	if path, err := workflowConfigPath(repo); err == nil && path != "" {
+		if language, ok := languageFromConfigFile(path); ok {
+			return language
+		}
+	}
+	return effectiveGlobalLanguage()
+}
+
+func effectiveGlobalLanguage() i18n.Language {
+	path, err := globalWorkflowConfigPath()
+	if err != nil || !fileExists(path) {
+		return i18n.English
+	}
+	if language, ok := languageFromConfigFile(path); ok {
+		return language
+	}
+	return i18n.English
+}
+
+// EffectiveLanguageForCWD resolves the repository root when the current directory is inside Git.
+func EffectiveLanguageForCWD() i18n.Language {
+	repo, err := GitRoot(".")
+	if err != nil {
+		repo = "."
+	}
+	return EffectiveLanguage(repo)
+}
+
+func languageFromConfigFile(path string) (i18n.Language, bool) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+	var header struct {
+		Language string `yaml:"language"`
+	}
+	if err := yaml.Unmarshal(data, &header); err != nil {
+		return "", false
+	}
+	if strings.TrimSpace(header.Language) == "" {
+		return i18n.English, true
+	}
+	language, err := i18n.Parse(header.Language)
+	if err != nil {
+		return "", false
+	}
+	return language, true
+}
+
+// SetLanguagePreference persists the selected language in project or user configuration.
+func SetLanguagePreference(repo string, global bool, language i18n.Language) (string, error) {
+	path := filepath.Join(repo, "specrelay-flow.yaml")
+	if global {
+		globalPath, err := globalWorkflowConfigPath()
+		if err != nil {
+			return "", err
+		}
+		path = globalPath
+	} else if existing, err := workflowConfigPath(repo); err != nil {
+		return "", err
+	} else if existing != "" {
+		path = existing
+	}
+	if !fileExists(path) {
+		if err := os.WriteFile(path, []byte(DefaultWorkflowConfigYAMLFor(language)), 0o644); err != nil {
+			return "", err
+		}
+		return path, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	var document yaml.Node
+	if err := yaml.Unmarshal(data, &document); err != nil {
+		return "", err
+	}
+	if document.Kind != yaml.DocumentNode || len(document.Content) == 0 || document.Content[0].Kind != yaml.MappingNode {
+		return "", i18n.Errorf("%s is not a YAML mapping", filepath.Base(path))
+	}
+	setYAMLString(document.Content[0], "language", string(language))
+	updated, err := yaml.Marshal(&document)
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, updated, 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func setYAMLString(mapping *yaml.Node, key, value string) {
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		if mapping.Content[i].Value == key {
+			mapping.Content[i+1] = &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value}
+			return
+		}
+	}
+	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}
+	valueNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value}
+	mapping.Content = append([]*yaml.Node{keyNode, valueNode}, mapping.Content...)
 }
 
 func mergeWorkflowConfigFile(config *WorkflowConfig, path string) error {
@@ -214,7 +329,7 @@ func workflowConfigPath(repo string) (string, error) {
 	yamlExists := fileExists(yamlPath)
 	ymlExists := fileExists(ymlPath)
 	if yamlExists && ymlExists {
-		return "", fmt.Errorf("specrelay-flow.yaml and specrelay-flow.yml cannot both exist")
+		return "", i18n.Errorf("specrelay-flow.yaml and specrelay-flow.yml cannot both exist")
 	}
 	if yamlExists {
 		return yamlPath, nil
@@ -241,12 +356,13 @@ func WriteWorkflowConfig(repo string, global bool) (string, error) {
 		}
 	}
 	if fileExists(path) {
-		return "", fmt.Errorf("%s already exists", filepath.Base(path))
+		return "", i18n.Errorf("%s already exists", filepath.Base(path))
 	}
 	if !global && fileExists(filepath.Join(repo, "specrelay-flow.yml")) {
-		return "", fmt.Errorf("specrelay-flow.yml already exists")
+		return "", i18n.Errorf("specrelay-flow.yml already exists")
 	}
-	if err := os.WriteFile(path, []byte(DefaultWorkflowConfigYAML), 0o644); err != nil {
+	language := EffectiveLanguage(repo)
+	if err := os.WriteFile(path, []byte(DefaultWorkflowConfigYAMLFor(language)), 0o644); err != nil {
 		return "", err
 	}
 	return path, nil
@@ -255,32 +371,32 @@ func WriteWorkflowConfig(repo string, global bool) (string, error) {
 func workflowConfigFromYAML(data []byte, source string, baseConfig *WorkflowConfig) (WorkflowConfig, error) {
 	hasOldRoot, err := hasLegacyWorkflowRoot(data)
 	if err != nil {
-		return WorkflowConfig{}, fmt.Errorf("parse %s failed: %w", source, err)
+		return WorkflowConfig{}, i18n.Errorf("parse %s failed: %w", source, err)
 	}
 	if hasOldRoot {
-		return WorkflowConfig{}, fmt.Errorf("%s is invalid: legacy wo/workflow fields were removed; use root-level stages", source)
+		return WorkflowConfig{}, i18n.Errorf("%s is invalid: legacy wo/workflow fields were removed; use root-level stages", source)
 	}
 
 	var input workflowConfigInput
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&input); err != nil {
-		return WorkflowConfig{}, fmt.Errorf("parse %s failed: %w", source, err)
+		return WorkflowConfig{}, i18n.Errorf("parse %s failed: %w", source, err)
 	}
 	next, err := workflowConfigFromInput(input, baseConfig)
 	if err != nil {
-		return WorkflowConfig{}, fmt.Errorf("%s is invalid: %w", source, err)
+		return WorkflowConfig{}, i18n.Errorf("%s is invalid: %w", source, err)
 	}
 	if input.Prompts != nil {
 		if next.Prompts == nil {
 			next.Prompts = map[string]string{}
 		}
 		if _, hasRepair := input.Prompts["repair"]; hasRepair && (input.Prompts["review"] != "" || input.Prompts["fix"] != "") {
-			return WorkflowConfig{}, fmt.Errorf("%s is invalid: prompts.repair cannot coexist with deprecated review/fix prompts", source)
+			return WorkflowConfig{}, i18n.Errorf("%s is invalid: prompts.repair cannot coexist with deprecated review/fix prompts", source)
 		}
 		for key, body := range input.Prompts {
 			if !slices.Contains(rolePromptKeys(), key) {
-				return WorkflowConfig{}, fmt.Errorf("%s is invalid: unknown prompt %q", source, key)
+				return WorkflowConfig{}, i18n.Errorf("%s is invalid: unknown prompt %q", source, key)
 			}
 			next.Prompts[key] = body
 		}
@@ -294,6 +410,7 @@ func workflowConfigFromYAML(data []byte, source string, baseConfig *WorkflowConf
 			}
 		}
 	}
+	localizeDefaultPrompts(next.Prompts, next.Language)
 	normalizePromptConfig(next.Prompts)
 	return next, nil
 }
@@ -322,6 +439,9 @@ func normalizeWorkflowConfig(config *WorkflowConfig) {
 	if config.Engine == "" {
 		config.Engine = "go-dag"
 	}
+	if config.Language == "" {
+		config.Language = i18n.English
+	}
 	normalizeValidationConfig(&config.Validation)
 	config.SubagentGuard = ""
 	config.Parallel = ParallelConfig{}
@@ -337,9 +457,9 @@ func normalizeValidationConfig(config *ValidationConfig) {
 	}
 }
 
-func clonePrompts(prompts map[string]string) map[string]string {
+func clonePrompts(prompts map[string]string, language i18n.Language) map[string]string {
 	if prompts == nil {
-		cloned := defaultPromptSet()
+		cloned := defaultPromptSet(language)
 		return cloned
 	}
 	cloned := map[string]string{}
@@ -373,7 +493,7 @@ func defaultStageOptionsByKind() map[string]StageOptions {
 	return options
 }
 
-func defaultPromptSet() map[string]string {
+func defaultPromptSet(language i18n.Language) map[string]string {
 	names := map[string]string{
 		"planning":  "specrelay-flow-discuss.md",
 		"execution": "specrelay-flow-start.md",
@@ -385,6 +505,9 @@ func defaultPromptSet() map[string]string {
 	}
 	prompts := map[string]string{}
 	for key, file := range names {
+		if language == i18n.SimplifiedChinese {
+			file = strings.TrimSuffix(file, ".md") + ".zh-CN.md"
+		}
 		data, err := promptstemplate.FS.ReadFile(file)
 		if err != nil {
 			panic(err)
@@ -394,8 +517,22 @@ func defaultPromptSet() map[string]string {
 	return prompts
 }
 
-func mustDefaultWorkflowConfigYAML() string {
-	template := `max_audit_iterations: 3
+// localizeDefaultPrompts replaces untouched built-in prompts with the configured language.
+func localizeDefaultPrompts(prompts map[string]string, language i18n.Language) {
+	english := defaultPromptSet(i18n.English)
+	chinese := defaultPromptSet(i18n.SimplifiedChinese)
+	localized := defaultPromptSet(language)
+	for key, body := range prompts {
+		trimmed := strings.TrimSpace(body)
+		if trimmed == strings.TrimSpace(english[key]) || trimmed == strings.TrimSpace(chinese[key]) {
+			prompts[key] = localized[key]
+		}
+	}
+}
+
+func mustDefaultWorkflowConfigYAML(language i18n.Language) string {
+	template := `language: ` + string(language) + `
+max_audit_iterations: 3
 stages:
   planning:
     agent: codex
@@ -431,7 +568,7 @@ prompts:
 {{ prompt "qa" }}
   archive: |
 {{ prompt "archive" }}`
-	prompts := defaultPromptSet()
+	prompts := defaultPromptSet(language)
 	for _, key := range rolePromptKeys() {
 		body := strings.TrimRight(prompts[key], "\n")
 		lines := strings.Split(body, "\n")

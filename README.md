@@ -25,12 +25,16 @@ flowchart LR
 go install github.com/DeeliN221/specrelay@latest
 specrelay install --global
 specrelay flow config
+# Optional: switch skills, flow prompts, and CLI output to Simplified Chinese.
+specrelay language zh-CN
 # Ask your coding agent to create a proposal, then exit the agent session.
 specrelay flow run
 specrelay flow watch
 ```
 
 Prebuilt binaries are available on the [GitHub releases page](https://github.com/DeeliN221/specrelay/releases). `specrelay install --global` installs the bundled skills into `~/.agents/skills`; it does not install the agent itself.
+
+English is the default user-visible language. Run `specrelay language zh-CN` to switch bundled skills, default flow prompts, and CLI help/status/error output to Simplified Chinese; add `--global` to store the preference in `~/specrelay-flow.yaml` instead of the project. Run `specrelay language` with no value to print the effective language. Customized prompts in `specrelay-flow.yaml` are preserved; untouched defaults follow the selected language.
 
 ## Choose a change size
 
@@ -54,6 +58,7 @@ Skills define how each role works; the change directory stores the proposal and 
 
 ```text
 specrelay install --global       Install bundled agent skills
+specrelay language [en|zh-CN]    Read or switch the user-visible language
 specrelay create                 Print the next proposal number
 specrelay list                   List changes
 specrelay status <change>        Inspect proposal artifacts

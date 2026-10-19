@@ -2,7 +2,7 @@
 package app
 
 import (
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"strings"
 )
 
@@ -40,7 +40,7 @@ func roleForStage(stage string) (stageRole, error) {
 			return role, nil
 		}
 	}
-	return stageRole{}, fmt.Errorf("unknown stage %q", stage)
+	return stageRole{}, i18n.Errorf("unknown stage %q", stage)
 }
 
 func roleByName(name string) (stageRole, bool) {

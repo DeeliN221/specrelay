@@ -4,13 +4,13 @@ package app
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/DeeliN221/specrelay/internal/acceptance"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 )
 
 const sealedAcceptanceHashFile = "acceptance.sha256"
@@ -240,7 +240,7 @@ func snapshotRunAcceptance(repo, runID, sourcePath string) error {
 // snapshotQualityLoopAcceptance seals a contract and stores its trust-root digest in run state.
 func snapshotQualityLoopAcceptance(repo string, state *State, sourcePath string) error {
 	if state == nil {
-		return fmt.Errorf("quality loop acceptance snapshot is missing state")
+		return i18n.Errorf("quality loop acceptance snapshot is missing state")
 	}
 	if err := snapshotRunAcceptance(repo, state.RunID, sourcePath); err != nil {
 		return err
@@ -262,7 +262,7 @@ func readAcceptanceForState(repo string, state State) (Acceptance, error) {
 	if usesQualityLoop(state.Workflow) {
 		contract, _, err := readVerifiedRunAcceptance(repo, state)
 		if err != nil {
-			return Acceptance{}, fmt.Errorf("quality loop is missing valid sealed acceptance %s: %w", runPath, err)
+			return Acceptance{}, i18n.Errorf("quality loop is missing valid sealed acceptance %s: %w", runPath, err)
 		}
 		return contract, nil
 	}
@@ -299,10 +299,10 @@ func readVerifiedRunAcceptance(repo string, state State) (Acceptance, string, er
 		// Unsealed in-memory fixtures preserve the pre-existing preflight unit-test contract.
 		expected = actual
 	} else if !validAcceptanceHash(expected) {
-		return Acceptance{}, "", fmt.Errorf("sealed acceptance is missing a valid state integrity hash")
+		return Acceptance{}, "", i18n.Errorf("sealed acceptance is missing a valid state integrity hash")
 	}
 	if actual != expected {
-		return Acceptance{}, "", fmt.Errorf("sealed acceptance integrity check failed: expected=%s actual=%s", expected, actual)
+		return Acceptance{}, "", i18n.Errorf("sealed acceptance integrity check failed: expected=%s actual=%s", expected, actual)
 	}
 	contract, err := acceptance.Parse(data)
 	if err != nil {
@@ -387,7 +387,7 @@ func archiveExists(repo, changeName string) bool {
 func startDetachedResumeCommand(repo, runID string) error {
 	exe, err := currentExecutable()
 	if err != nil {
-		return fmt.Errorf("resolve specrelay flow executable failed: %w", err)
+		return i18n.Errorf("resolve specrelay flow executable failed: %w", err)
 	}
 	base := runDir(repo, runID)
 	if err := os.MkdirAll(base, 0o755); err != nil {

@@ -3,7 +3,7 @@ package app
 
 import (
 	"context"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"path/filepath"
 )
@@ -67,19 +67,19 @@ func handleFlowConfigCommand(ctx context.Context, args []string, stdout io.Write
 		return err
 	}
 	if options.Global {
-		fmt.Fprintf(stdout, "Created global configuration %s\n", path)
+		i18n.Fprintf(stdout, "Created global configuration %s\n", path)
 		return nil
 	}
-	fmt.Fprintf(stdout, "Created %s\n", filepath.Base(path))
+	i18n.Fprintf(stdout, "Created %s\n", filepath.Base(path))
 	return nil
 }
 
 func removedFlowInitCommand(context.Context, []string, io.Writer, string, *Engine) error {
-	return fmt.Errorf("specrelay flow init has been removed; use specrelay flow config")
+	return i18n.Errorf("specrelay flow init has been removed; use specrelay flow config")
 }
 
 func removedFlowInstallCommand(context.Context, []string, io.Writer, string, *Engine) error {
-	return fmt.Errorf("specrelay flow install has been removed; prompts are embedded in specrelay-flow.yaml; use specrelay flow config or specrelay flow config --global")
+	return i18n.Errorf("specrelay flow install has been removed; prompts are embedded in specrelay-flow.yaml; use specrelay flow config or specrelay flow config --global")
 }
 
 func handleFlowContractCommand(ctx context.Context, args []string, stdout io.Writer, repo string, engine *Engine) error {
@@ -87,7 +87,7 @@ func handleFlowContractCommand(ctx context.Context, args []string, stdout io.Wri
 	_ = repo
 	_ = engine
 	if !hasFlag(args[1:], "--json") {
-		return fmt.Errorf("Usage: specrelay flow contract --json")
+		return i18n.Errorf("Usage: specrelay flow contract --json")
 	}
 	return writeRunnerContract(stdout)
 }
@@ -96,7 +96,7 @@ func handleFlowListChangesCommand(ctx context.Context, args []string, stdout io.
 	_ = ctx
 	_ = engine
 	if !hasFlag(args[1:], "--json") {
-		return fmt.Errorf("Usage: specrelay flow list-changes --json")
+		return i18n.Errorf("Usage: specrelay flow list-changes --json")
 	}
 	changes, err := ListChanges(repo)
 	if err != nil {
@@ -113,7 +113,7 @@ func handleRunAcceptanceCommand(ctx context.Context, args []string, stdout io.Wr
 
 func handleSubmitAllActiveCommand(ctx context.Context, args []string, stdout io.Writer, repo string, engine *Engine) error {
 	if len(args) != 1 {
-		return fmt.Errorf("Usage: specrelay flow r")
+		return i18n.Errorf("Usage: specrelay flow r")
 	}
 	return submitAllActiveChanges(ctx, stdout, repo, engine)
 }
@@ -147,7 +147,7 @@ func handleCleanCommand(ctx context.Context, args []string, stdout io.Writer, re
 	_ = engine
 	for _, arg := range args[1:] {
 		if arg != "--agent-sessions" && arg != "--dry-run" && arg != "--json" {
-			return fmt.Errorf("Usage: specrelay flow clean [--agent-sessions] [--dry-run] [--json]")
+			return i18n.Errorf("Usage: specrelay flow clean [--agent-sessions] [--dry-run] [--json]")
 		}
 	}
 	return runClean(stdout, repo, args[1:]...)
@@ -176,7 +176,7 @@ func handleResumeLatestCommand(ctx context.Context, args []string, stdout io.Wri
 func handleRunAliasCommand(ctx context.Context, args []string, stdout io.Writer, repo string, engine *Engine) error {
 	_ = stdout
 	if len(args) != 2 {
-		return fmt.Errorf("Usage: specrelay flow --run <change-name>")
+		return i18n.Errorf("Usage: specrelay flow --run <change-name>")
 	}
 	if err := ValidateChange(repo, args[1]); err != nil {
 		return err

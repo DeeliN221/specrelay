@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"os/exec"
@@ -72,7 +73,7 @@ func (c CodexCLI) Run(ctx context.Context, repo, prompt, threadID string, option
 		return "", c.ResolveErr
 	}
 	if c.Path == "" {
-		return "", fmt.Errorf("cannot find the codex executable")
+		return "", i18n.Errorf("cannot find the codex executable")
 	}
 	args := codexExecArgs(repo, threadID, options)
 	cmd := commandContext(ctx, c.Path, args...)
@@ -169,7 +170,7 @@ func (c CodexCLI) waitCodexJSONLCommand(ctx context.Context, cmd *exec.Cmd, stdo
 			if cmd.Process != nil {
 				_ = cmd.Process.Kill()
 			}
-			return getObserved(), fmt.Errorf("%w: codex %s has produced no new output; terminated this process to prepare for continuation", errGoDAGRetryableNode, agentOutputIdleTimeout), nil
+			return getObserved(), i18n.Errorf("%w: codex %s has produced no new output; terminated this process to prepare for continuation", errGoDAGRetryableNode, agentOutputIdleTimeout), nil
 		}
 	}
 	return getObserved(), drainErr, waitErr
@@ -181,7 +182,7 @@ func codexCommandError(err error, stderrText string) error {
 	if stderrText == "" {
 		return err
 	}
-	return fmt.Errorf("%w; stderr: %s", err, stderrText)
+	return i18n.Errorf("%w; stderr: %s", err, stderrText)
 }
 
 // stringsReader creates an io.Reader without importing shell-specific behavior.

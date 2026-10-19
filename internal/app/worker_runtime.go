@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"os/exec"
@@ -63,7 +64,7 @@ func startDetachedWorkerCommand(cmd *exec.Cmd, logPath string) error {
 	_ = logFile.Close()
 	if err := releaseDetachedProcess(cmd.Process); err != nil {
 		return &detachedWorkerStartError{
-			Cause:          fmt.Errorf("background worker started but process handle handoff failed: %w", err),
+			Cause:          i18n.Errorf("background worker started but process handle handoff failed: %w", err),
 			ProcessStarted: true,
 		}
 	}
@@ -73,7 +74,7 @@ func startDetachedWorkerCommand(cmd *exec.Cmd, logPath string) error {
 // attachDetachedWorkerLog connects both worker output streams to one persistent log file.
 func attachDetachedWorkerLog(cmd *exec.Cmd, logPath string) (*os.File, error) {
 	if logPath == "" {
-		return nil, fmt.Errorf("worker log path must not be empty")
+		return nil, i18n.Errorf("worker log path must not be empty")
 	}
 	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 		return nil, err
@@ -180,13 +181,13 @@ func acquireBatchWorkerLock(repo, batchID string) (func(), error) {
 		return nil, err
 	}
 	if !acquired && status == lockStatusActive {
-		return nil, fmt.Errorf("batch %s already has an active worker", batchID)
+		return nil, i18n.Errorf("batch %s already has an active worker", batchID)
 	}
 	if !acquired && status == lockStatusUnknown {
-		return nil, fmt.Errorf("batch %s:  worker lock is uncertain", batchID)
+		return nil, i18n.Errorf("batch %s:  worker lock is uncertain", batchID)
 	}
 	if !acquired {
-		return nil, fmt.Errorf("batch %s failed to acquire worker lock", batchID)
+		return nil, i18n.Errorf("batch %s failed to acquire worker lock", batchID)
 	}
 	return unlock, nil
 }
@@ -436,7 +437,7 @@ func workerHeartbeatFresh(worker *WorkerRuntimeState, now time.Time) bool {
 
 // workerPanicError converts recovered panic values into a normal workflow error.
 func workerPanicError(recovered any) error {
-	return fmt.Errorf("worker panic: %v", recovered)
+	return i18n.Errorf("worker panic: %v", recovered)
 }
 
 // writeWorkerPanic writes a panic stack into stderr, which detached workers persist in worker.log.

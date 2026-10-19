@@ -3,13 +3,13 @@ package specrelaycli
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 
 	"github.com/DeeliN221/specrelay/internal/acceptance"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 )
 
 func (c *cli) listCmd(args []string) error {
@@ -20,7 +20,7 @@ func (c *cli) listCmd(args []string) error {
 	}
 	jsonOut := hasArg(args, "--json")
 	if len(args) > 1 || (len(args) == 1 && !jsonOut) {
-		return errors.New("Usage:specrelay list [--json]")
+		return i18n.New("Usage:specrelay list [--json]")
 	}
 	root, err := stateRoot()
 	if err != nil {
@@ -45,26 +45,26 @@ func (c *cli) listCmd(args []string) error {
 		return writeJSON(c.out, map[string]any{"changes": changes})
 	}
 	for _, name := range names {
-		fmt.Fprintln(c.out, name)
+		i18n.Fprintln(c.out, name)
 	}
 	return nil
 }
 
 func (c *cli) printListHelp() {
 	// printListHelp documents both the full list command and its short alias.
-	fmt.Fprintln(c.out, "Usage:")
-	fmt.Fprintln(c.out, "  specrelay list [--json]")
-	fmt.Fprintln(c.out, "  specrelay l [--json]")
+	i18n.Fprintln(c.out, "Usage:")
+	i18n.Fprintln(c.out, "  specrelay list [--json]")
+	i18n.Fprintln(c.out, "  specrelay l [--json]")
 }
 
 func (c *cli) createCmd(args []string) error {
 	// createCmd reports the next proposal number while agents still create artifacts via skills.
 	if hasHelp(args) {
-		fmt.Fprintln(c.out, "Usage:specrelay create")
+		i18n.Fprintln(c.out, "Usage:specrelay create")
 		return nil
 	}
 	if len(args) != 0 {
-		return errors.New("Usage:specrelay create")
+		return i18n.New("Usage:specrelay create")
 	}
 	root, err := stateRoot()
 	if err != nil {
@@ -74,20 +74,20 @@ func (c *cli) createCmd(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(c.out, next)
+	i18n.Fprintln(c.out, next)
 	return nil
 }
 
 func (c *cli) statusCmd(args []string) error {
 	// statusCmd reports fixed proposal artifacts and acceptance coverage for one active change.
 	if hasHelp(args) {
-		fmt.Fprintln(c.out, "Usage:specrelay status <change> [--json]")
+		i18n.Fprintln(c.out, "Usage:specrelay status <change> [--json]")
 		return nil
 	}
 	jsonOut := hasArg(args, "--json")
 	change := firstPositional(args)
 	if change == "" {
-		return errors.New("Usage:specrelay status <change> [--json]")
+		return i18n.New("Usage:specrelay status <change> [--json]")
 	}
 	if err := validateNumberedChange(change); err != nil {
 		return err
@@ -100,9 +100,9 @@ func (c *cli) statusCmd(args []string) error {
 	if jsonOut {
 		return writeJSON(c.out, payload)
 	}
-	fmt.Fprintf(c.out, "%s: %s\n", change, displayStatus(payload["status"].(string)))
+	i18n.Fprintf(c.out, "%s: %s\n", change, displayStatus(payload["status"].(string)))
 	for _, artifact := range payload["artifacts"].([]map[string]any) {
-		fmt.Fprintf(c.out, "- %s: %s\n", artifact["name"], displayStatus(artifact["status"].(string)))
+		i18n.Fprintf(c.out, "- %s: %s\n", artifact["name"], displayStatus(artifact["status"].(string)))
 	}
 	return nil
 }

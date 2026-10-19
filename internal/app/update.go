@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"net/http"
 	"net/url"
@@ -113,9 +114,9 @@ func printUpdateHint(stdout io.Writer) {
 		return
 	}
 	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Updates available:")
+	i18n.Fprintln(stdout, "Updates available:")
 	for _, line := range lines {
-		fmt.Fprintln(stdout, line)
+		i18n.Fprintln(stdout, line)
 	}
 }
 
@@ -187,14 +188,14 @@ func fetchLatestRelease(ctx context.Context, client *http.Client, tool updateToo
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return releaseInfo{}, fmt.Errorf("GitHub returned %s", resp.Status)
+		return releaseInfo{}, i18n.Errorf("GitHub returned %s", resp.Status)
 	}
 	var release releaseInfo
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
 		return releaseInfo{}, err
 	}
 	if release.TagName == "" {
-		return releaseInfo{}, errors.New("latest release is missing a tag")
+		return releaseInfo{}, i18n.New("latest release is missing a tag")
 	}
 	return release, nil
 }
@@ -319,7 +320,7 @@ func installToolUpdateWithTrust(ctx context.Context, client *http.Client, tool u
 	result.StagedPath = staged
 	backup, err := backupExecutable(target, tool.Name, current)
 	if err != nil {
-		result.Err = fmt.Errorf("backup failed: %w", err)
+		result.Err = i18n.Errorf("backup failed: %w", err)
 		return result
 	}
 	result.BackupPath = backup
@@ -339,7 +340,7 @@ func installToolUpdateWithTrust(ctx context.Context, client *http.Client, tool u
 		result.StagedPath = ""
 		if err := verifyBinaryVersion(target, release.TagName); err != nil {
 			result.Updated = false
-			result.Err = fmt.Errorf("post-install version verification failed: %w", err)
+			result.Err = i18n.Errorf("post-install version verification failed: %w", err)
 			return result
 		}
 	}
@@ -365,7 +366,7 @@ func currentToolVersion(name string) (string, error) {
 	}
 	fields := strings.Fields(strings.TrimSpace(string(out)))
 	if len(fields) == 0 {
-		return "", errors.New("version output is empty")
+		return "", i18n.New("version output is empty")
 	}
 	return fields[0], nil
 }
@@ -382,7 +383,7 @@ func selectReleaseAsset(tool string, release releaseInfo, goos, goarch string) (
 			return asset, nil
 		}
 	}
-	return releaseAsset{}, fmt.Errorf("missing asset for the current platform %s", want)
+	return releaseAsset{}, i18n.Errorf("missing asset for the current platform %s", want)
 }
 
 // selectChecksumAsset finds sha256sums.txt in a release.
@@ -392,7 +393,7 @@ func selectChecksumAsset(release releaseInfo) (releaseAsset, error) {
 			return asset, nil
 		}
 	}
-	return releaseAsset{}, errors.New("missing sha256sums.txt")
+	return releaseAsset{}, i18n.New("missing sha256sums.txt")
 }
 
 // downloadAsset downloads one release asset to a temp directory.
@@ -420,7 +421,7 @@ func downloadAssetWithTrust(ctx context.Context, client *http.Client, asset rele
 		}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("download %s failed: %s", asset.Name, resp.Status)
+		return "", i18n.Errorf("download %s failed: %s", asset.Name, resp.Status)
 	}
 	path := filepath.Join(dir, asset.Name)
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
@@ -437,7 +438,7 @@ func downloadAssetWithTrust(ctx context.Context, client *http.Client, asset rele
 		return "", err
 	}
 	if written > limit {
-		return "", fmt.Errorf("download %s exceeds the size limit", asset.Name)
+		return "", i18n.Errorf("download %s exceeds the size limit", asset.Name)
 	}
 	return path, nil
 }
@@ -449,14 +450,14 @@ func validateUpdateAssetURL(raw string, trust updateAssetTrustPolicy) error {
 		return err
 	}
 	if parsed.Scheme == "" || parsed.Host == "" {
-		return fmt.Errorf("download URL is missing a scheme or host: %s", raw)
+		return i18n.Errorf("download URL is missing a scheme or host: %s", raw)
 	}
 	if parsed.Scheme != "https" {
-		return fmt.Errorf("download URL must use HTTPS: %s", raw)
+		return i18n.Errorf("download URL must use HTTPS: %s", raw)
 	}
 	host := strings.ToLower(parsed.Hostname())
 	if !trust.TrustedHosts[host] {
-		return fmt.Errorf("download URL host is untrusted: %s", parsed.Host)
+		return i18n.Errorf("download URL host is untrusted: %s", parsed.Host)
 	}
 	return nil
 }
@@ -477,7 +478,7 @@ func verifyChecksum(archivePath, sumPath string) error {
 		}
 	}
 	if want == "" {
-		return fmt.Errorf("sha256sums.txt is missing %s", wantName)
+		return i18n.Errorf("sha256sums.txt is missing %s", wantName)
 	}
 	file, err := os.Open(archivePath)
 	if err != nil {
@@ -490,7 +491,7 @@ func verifyChecksum(archivePath, sumPath string) error {
 	}
 	got := hex.EncodeToString(hash.Sum(nil))
 	if !strings.EqualFold(got, want) {
-		return fmt.Errorf("validation failed: %s", wantName)
+		return i18n.Errorf("validation failed: %s", wantName)
 	}
 	return nil
 }
@@ -529,7 +530,7 @@ func extractTarGzBinary(archivePath, tool, dir string) (string, error) {
 		}
 		return writeStagedBinary(reader, filepath.Join(dir, executableName(tool)))
 	}
-	return "", fmt.Errorf("archive is missing %s", executableName(tool))
+	return "", i18n.Errorf("archive is missing %s", executableName(tool))
 }
 
 // extractZipBinary extracts a release binary from a zip archive.
@@ -550,7 +551,7 @@ func extractZipBinary(archivePath, tool, dir string) (string, error) {
 		defer src.Close()
 		return writeStagedBinary(src, filepath.Join(dir, executableName(tool)))
 	}
-	return "", fmt.Errorf("archive is missing %s", executableName(tool))
+	return "", i18n.Errorf("archive is missing %s", executableName(tool))
 }
 
 // writeStagedBinary writes an executable staged binary.
@@ -576,7 +577,7 @@ func verifyBinaryVersion(path, latest string) error {
 	}
 	got := strings.TrimSpace(string(out))
 	if got != latest {
-		return fmt.Errorf("version verification failed: got %q want %q", got, latest)
+		return i18n.Errorf("version verification failed: got %q want %q", got, latest)
 	}
 	return nil
 }
@@ -667,37 +668,37 @@ func preserveStagedBinary(staged, tool, version string) (string, error) {
 // printInstallResult writes one tool's update outcome.
 func printInstallResult(stdout io.Writer, result updateInstallResult) {
 	if result.Err != nil {
-		fmt.Fprintf(stdout, "%s: update failed: %v\n", result.Tool, result.Err)
+		i18n.Fprintf(stdout, "%s: update failed: %v\n", result.Tool, result.Err)
 		if result.BackupPath != "" {
-			fmt.Fprintf(stdout, "  Backup: %s\n", result.BackupPath)
+			i18n.Fprintf(stdout, "  Backup: %s\n", result.BackupPath)
 			rollback := result.Rollback
 			if rollback == "" {
 				rollback = copyCommand(result.BackupPath, result.TargetPath, runtime.GOOS)
 			}
-			fmt.Fprintf(stdout, "  Rollback: %s\n", rollback)
+			i18n.Fprintf(stdout, "  Rollback: %s\n", rollback)
 		}
 		if result.StagedPath != "" {
-			fmt.Fprintf(stdout, "  Staged new version: %s\n", result.StagedPath)
-			fmt.Fprintf(stdout, "  Manual replacement: %s\n", copyCommand(result.StagedPath, result.TargetPath, runtime.GOOS))
+			i18n.Fprintf(stdout, "  Staged new version: %s\n", result.StagedPath)
+			i18n.Fprintf(stdout, "  Manual replacement: %s\n", copyCommand(result.StagedPath, result.TargetPath, runtime.GOOS))
 		}
 		return
 	}
 	if result.Skipped != "" {
 		if result.Latest != "" {
-			fmt.Fprintf(stdout, "%s: %s %s\n", result.Tool, result.Skipped, result.Latest)
+			i18n.Fprintf(stdout, "%s: %s %s\n", result.Tool, result.Skipped, result.Latest)
 		} else {
-			fmt.Fprintf(stdout, "%s: %s\n", result.Tool, result.Skipped)
+			i18n.Fprintf(stdout, "%s: %s\n", result.Tool, result.Skipped)
 		}
 		return
 	}
 	if result.Updated {
 		if result.Pending {
-			fmt.Fprintf(stdout, "%s: Downloaded %s -> %s; the update will finish after this process exits\n", result.Tool, result.Current, result.Latest)
+			i18n.Fprintf(stdout, "%s: Downloaded %s -> %s; the update will finish after this process exits\n", result.Tool, result.Current, result.Latest)
 		} else {
-			fmt.Fprintf(stdout, "%s: Updated %s -> %s\n", result.Tool, result.Current, result.Latest)
+			i18n.Fprintf(stdout, "%s: Updated %s -> %s\n", result.Tool, result.Current, result.Latest)
 		}
-		fmt.Fprintf(stdout, "  Backup: %s\n", result.BackupPath)
-		fmt.Fprintf(stdout, "  Rollback: %s\n", result.Rollback)
+		i18n.Fprintf(stdout, "  Backup: %s\n", result.BackupPath)
+		i18n.Fprintf(stdout, "  Rollback: %s\n", result.Rollback)
 	}
 }
 
@@ -750,7 +751,7 @@ func readUpdateCache(path string) (updateCheckCache, error) {
 		return cache, err
 	}
 	if cache.TTLSeconds <= 0 || cache.Tools == nil {
-		return cache, errors.New("invalid cache")
+		return cache, i18n.New("invalid cache")
 	}
 	return cache, nil
 }

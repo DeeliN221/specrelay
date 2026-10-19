@@ -3,6 +3,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -169,7 +170,7 @@ func (e *Engine) validateStageArtifact(state State) (stageArtifactResult, bool, 
 		}
 		return stageArtifactResult{}, true, nil
 	}
-	return stageArtifactResult{}, false, fmt.Errorf("unknown stage %q", state.Stage)
+	return stageArtifactResult{}, false, i18n.Errorf("unknown stage %q", state.Stage)
 }
 
 // artifactDone reports whether the current stage already has a valid durable output.
@@ -185,7 +186,7 @@ func (e *Engine) checkStageArtifactGate(state State) (bool, error) {
 		return false, e.stageArtifactGateError(state, err)
 	}
 	if !done {
-		return false, e.stageArtifactGateError(state, fmt.Errorf("%s stage artifact is incomplete", state.Stage))
+		return false, e.stageArtifactGateError(state, i18n.Errorf("%s stage artifact is incomplete", state.Stage))
 	}
 	return true, nil
 }

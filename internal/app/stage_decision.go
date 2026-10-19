@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"os"
 	"path/filepath"
 	"sort"
@@ -108,7 +109,7 @@ func DecideNextStage(state State, review Review, qa QA) (StageDecision, error) {
 	case workflowStageArchive:
 		return StageDecision{NextStage: "done", NextStatus: statusDone}, nil
 	default:
-		return StageDecision{}, fmt.Errorf("unknown stage %q", state.Stage)
+		return StageDecision{}, i18n.Errorf("unknown stage %q", state.Stage)
 	}
 }
 
@@ -200,7 +201,7 @@ func decideQualityLoopStage(state State, stage workflowStage, repair Review, qa 
 	case workflowStageArchive:
 		return StageDecision{NextStage: workflowStageDone, NextStatus: statusDone}, nil
 	default:
-		return StageDecision{}, fmt.Errorf("quality loop unknown stage %q", state.Stage)
+		return StageDecision{}, i18n.Errorf("quality loop unknown stage %q", state.Stage)
 	}
 }
 
@@ -536,7 +537,7 @@ func (e *Engine) advance(state *State) error {
 		return e.stageArtifactGateError(*state, err)
 	}
 	if !done {
-		return e.stageArtifactGateError(*state, fmt.Errorf("%s stage artifact is incomplete", state.Stage))
+		return e.stageArtifactGateError(*state, i18n.Errorf("%s stage artifact is incomplete", state.Stage))
 	}
 	review := result.Review
 	if stage, parseErr := parseWorkflowStage(state.Stage); parseErr == nil {
@@ -563,7 +564,7 @@ func (e *Engine) advance(state *State) error {
 	case workflowStageFix:
 	case workflowStageArchive:
 	default:
-		return fmt.Errorf("unknown stage %q", state.Stage)
+		return i18n.Errorf("unknown stage %q", state.Stage)
 	}
 	decision, err := DecideNextStage(*state, review, qa)
 	if err != nil {
@@ -589,14 +590,14 @@ func (e *Engine) advance(state *State) error {
 // validateArchiveReadiness blocks archive completion until the evidence chain is complete.
 func (e *Engine) validateArchiveReadiness(state State) error {
 	if !fileExists(filepath.Join(runDir(e.Repo, state.RunID), "delivery-summary.md")) || !archiveExists(e.Repo, state.ChangeName) {
-		return fmt.Errorf("archive stage is missing a delivery summary or archive directory")
+		return i18n.Errorf("archive stage is missing a delivery summary or archive directory")
 	}
 	if err := e.verifyQualityLoopArchivedAcceptance(state); err != nil {
 		return err
 	}
 	iteration := latestCompletedQAIteration(state)
 	if iteration == 0 {
-		return fmt.Errorf("archive stage is missing a clean QA artifact")
+		return i18n.Errorf("archive stage is missing a clean QA artifact")
 	}
 	if usesRepairWorkflow(state.Workflow) && state.Workflow.MaxRepairIterations > 0 {
 		repair, err := ReadRepair(filepath.Join(runDir(e.Repo, state.RunID), fmt.Sprintf("repair-%d.json", iteration)))
@@ -604,7 +605,7 @@ func (e *Engine) validateArchiveReadiness(state State) error {
 			return err
 		}
 		if RepairNeedsMore(repair) {
-			return fmt.Errorf("archive stage found repair-%d still needs continuation", iteration)
+			return i18n.Errorf("archive stage found repair-%d still needs continuation", iteration)
 		}
 	} else if !usesQualityLoop(state.Workflow) && state.Workflow.MaxReviewIterations > 0 {
 		review, err := ReadReview(filepath.Join(runDir(e.Repo, state.RunID), fmt.Sprintf("review-%d.json", iteration)))
@@ -612,7 +613,7 @@ func (e *Engine) validateArchiveReadiness(state State) error {
 			return err
 		}
 		if NeedsFix(review) {
-			return fmt.Errorf("archive stage found review-%d still needs repair", iteration)
+			return i18n.Errorf("archive stage found review-%d still needs repair", iteration)
 		}
 	}
 	qa, err := ReadQA(filepath.Join(runDir(e.Repo, state.RunID), fmt.Sprintf("qa-%d.json", iteration)))
@@ -627,7 +628,7 @@ func (e *Engine) validateArchiveReadiness(state State) error {
 		return err
 	}
 	if QANeedsFix(qa) {
-		return fmt.Errorf("archive stage found qa-%d still needs repair", iteration)
+		return i18n.Errorf("archive stage found qa-%d still needs repair", iteration)
 	}
 	if len(state.Workflow.Validation.Commands) > 0 {
 		return validateArchiveValidationEvidence(state)
@@ -676,7 +677,7 @@ func validateArchiveValidationEvidence(state State) error {
 			continue
 		}
 		if state.Validation[stage].Status != validationStatusPassed {
-			return fmt.Errorf("archive stage is missing a validation-passed record for %s", stage)
+			return i18n.Errorf("archive stage is missing a validation-passed record for %s", stage)
 		}
 	}
 	return nil

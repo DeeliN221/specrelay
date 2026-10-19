@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"os/exec"
@@ -21,20 +22,20 @@ const (
 // dispatchStopCommand stops the current running batch workflow.
 func dispatchStopCommand(args []string, stdout io.Writer, repo string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("Usage: specrelay flow stop")
+		return i18n.Errorf("Usage: specrelay flow stop")
 	}
 	batchID, err := FindUnfinishedBatch(repo)
 	if err != nil {
 		return err
 	}
 	if batchID == "" {
-		fmt.Fprintln(stdout, "No active batch workflow")
+		i18n.Fprintln(stdout, "No active batch workflow")
 		return nil
 	}
 	if err := AbortBatch(repo, batchID); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Stopped batch workflow %s\n", batchID)
+	i18n.Fprintf(stdout, "Stopped batch workflow %s\n", batchID)
 	return nil
 }
 
@@ -49,16 +50,16 @@ func dispatchArchiveCommand(args []string, stdout io.Writer, repo string) error 
 		if _, err := ArchiveFailedBatch(repo, ref.ID); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Archived failed batch workflow %s; run specrelay flow run to start a new workflow\n", ref.Alias)
+		i18n.Fprintf(stdout, "Archived failed batch workflow %s; run specrelay flow run to start a new workflow\n", ref.Alias)
 		return nil
 	case "run":
 		if err := ArchiveFailedRun(repo, ref.ID, "archived failed workflow"); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Archived failed workflow %s; run specrelay flow run to start a new workflow\n", ref.Alias)
+		i18n.Fprintf(stdout, "Archived failed workflow %s; run specrelay flow run to start a new workflow\n", ref.Alias)
 		return nil
 	default:
-		return fmt.Errorf("No failed workflow to archive")
+		return i18n.Errorf("No failed workflow to archive")
 	}
 }
 
@@ -68,20 +69,20 @@ func dispatchLoopCommand(ctx context.Context, args []string, stdout io.Writer, r
 		return runBatchLoopWorker(ctx, stdout, repo, engine, time.Minute)
 	}
 	if len(args) != 1 {
-		return fmt.Errorf("Usage: specrelay flow loop")
+		return i18n.Errorf("Usage: specrelay flow loop")
 	}
 	active, err := loopWorkerActive(repo)
 	if err != nil {
 		return err
 	}
 	if active {
-		fmt.Fprintln(stdout, "Background loop monitor is already running")
+		i18n.Fprintln(stdout, "Background loop monitor is already running")
 		return nil
 	}
 	if err := startDetachedLoopCommand(repo); err != nil {
 		return err
 	}
-	fmt.Fprintln(stdout, "Started background loop monitor")
+	i18n.Fprintln(stdout, "Started background loop monitor")
 	return nil
 }
 
@@ -108,10 +109,10 @@ func ResolveArchiveTarget(repo string, args []string) (kind string, ref StatusRe
 				return "run", runRef, nil
 			}
 		}
-		return "", StatusRef{}, fmt.Errorf("No failed workflow to archive")
+		return "", StatusRef{}, i18n.Errorf("No failed workflow to archive")
 	}
 	if len(args) != 1 {
-		return "", StatusRef{}, fmt.Errorf("Usage: specrelay flow archive [-bN|-wN]")
+		return "", StatusRef{}, i18n.Errorf("Usage: specrelay flow archive [-bN|-wN]")
 	}
 	switch {
 	case strings.HasPrefix(args[0], "-b"):
@@ -121,7 +122,7 @@ func ResolveArchiveTarget(repo string, args []string) (kind string, ref StatusRe
 		ref, err := resolveIndexedRef(repo, args[0], "-w", ListRunRefs)
 		return "run", ref, err
 	default:
-		return "", StatusRef{}, fmt.Errorf("Usage: specrelay flow archive [-bN|-wN]")
+		return "", StatusRef{}, i18n.Errorf("Usage: specrelay flow archive [-bN|-wN]")
 	}
 }
 
@@ -132,7 +133,7 @@ func ArchiveFailedBatch(repo, batchID string) (BatchState, error) {
 		return BatchState{}, err
 	}
 	if !isArchivableBatch(batch) {
-		return BatchState{}, fmt.Errorf("batch workflow %s with status %s cannot be archived", batchID, batch.Status)
+		return BatchState{}, i18n.Errorf("batch workflow %s with status %s cannot be archived", batchID, batch.Status)
 	}
 	if runID := failedRunIDForBatch(batch); runID != "" {
 		if err := ArchiveFailedRun(repo, runID, "archived with failed batch "+batchID); err != nil && !isAlreadyArchivedRunError(err) {
@@ -159,7 +160,7 @@ func ArchiveFailedRun(repo, runID, reason string) error {
 		return alreadyArchivedRunError{runID: runID}
 	}
 	if !isArchivableRun(state) {
-		return fmt.Errorf("workflow %s with status %s cannot be archived", runID, state.Status)
+		return i18n.Errorf("workflow %s with status %s cannot be archived", runID, state.Status)
 	}
 	if err := clearArchiveLock(repo, runID); err != nil {
 		return err
@@ -222,10 +223,10 @@ func runBatchLoopTick(ctx context.Context, stdout io.Writer, repo string, engine
 		case loopDecisionRunning:
 			return false, nil
 		case loopDecisionDone:
-			fmt.Fprintf(stdout, "Batch workflow %s completed\n", batch.BatchID)
+			i18n.Fprintf(stdout, "Batch workflow %s completed\n", batch.BatchID)
 			return true, nil
 		case loopDecisionStopped:
-			fmt.Fprintf(stdout, "Batch workflow %s stopped; exiting loop\n", batch.BatchID)
+			i18n.Fprintf(stdout, "Batch workflow %s stopped; exiting loop\n", batch.BatchID)
 			return true, nil
 		case loopDecisionFailed:
 			return archiveAndSubmitContinuation(ctx, stdout, repo, engine, batch, decision.Reason)
@@ -276,9 +277,9 @@ func archiveAndSubmitContinuation(ctx context.Context, stdout io.Writer, repo st
 	if reason == "" {
 		reason = "failed"
 	}
-	fmt.Fprintf(stdout, "Archived failed batch workflow %s: %s\n", batch.BatchID, reason)
+	i18n.Fprintf(stdout, "Archived failed batch workflow %s: %s\n", batch.BatchID, reason)
 	if blocked {
-		fmt.Fprintln(stdout, "This failure requires manual intervention; stopping the loop")
+		i18n.Fprintln(stdout, "This failure requires manual intervention; stopping the loop")
 		return true, nil
 	}
 	repeated, err := loopRepeatedFailureCount(repo, batch, fingerprint)
@@ -286,11 +287,11 @@ func archiveAndSubmitContinuation(ctx context.Context, stdout io.Writer, repo st
 		return false, err
 	}
 	if repeated >= loopRepeatedFailureLimit {
-		fmt.Fprintf(stdout, "The same failure occurred %d consecutive times; stopping the loop\n", repeated)
+		i18n.Fprintf(stdout, "The same failure occurred %d consecutive times; stopping the loop\n", repeated)
 		return true, nil
 	}
 	if len(changes) == 0 {
-		fmt.Fprintln(stdout, "No active changes to continue; exiting loop")
+		i18n.Fprintln(stdout, "No active changes to continue; exiting loop")
 		return true, nil
 	}
 	return false, engine.SubmitBatch(ctx, changes)
@@ -367,7 +368,7 @@ func submitActiveChangesOrFinishLoop(ctx context.Context, stdout io.Writer, repo
 		return false, err
 	}
 	if len(changes) == 0 {
-		fmt.Fprint(stdout, terminalMessage)
+		i18n.Fprint(stdout, terminalMessage)
 		return true, nil
 	}
 	if err := engine.SubmitBatch(ctx, changes); err != nil {
@@ -380,7 +381,7 @@ func submitActiveChangesOrFinishLoop(ctx context.Context, stdout io.Writer, repo
 func startDetachedLoopWorkerCommand(repo string) error {
 	exe, err := currentExecutable()
 	if err != nil {
-		return fmt.Errorf("resolve specrelay flow executable failed: %w", err)
+		return i18n.Errorf("resolve specrelay flow executable failed: %w", err)
 	}
 	cmd := exec.Command(exe, flowWorkerCommandArgs("loop", "--worker", "--json")...)
 	cmd.Dir = repo
@@ -403,7 +404,7 @@ func loopWorkerActive(repo string) (bool, error) {
 		return false, err
 	}
 	if status == lockStatusUnknown {
-		return false, fmt.Errorf("loop lock is uncertain; retry later or inspect %s manually", path)
+		return false, i18n.Errorf("loop lock is uncertain; retry later or inspect %s manually", path)
 	}
 	return status == lockStatusActive, nil
 }
@@ -422,10 +423,10 @@ func acquireLoopWorkerLock(repo string) (func(), bool, error) {
 		return nil, false, nil
 	}
 	if !acquired && status == lockStatusUnknown {
-		return nil, false, fmt.Errorf("loop lock is uncertain; retry later or inspect %s manually", path)
+		return nil, false, i18n.Errorf("loop lock is uncertain; retry later or inspect %s manually", path)
 	}
 	if !acquired {
-		return nil, false, fmt.Errorf("failed to acquire loop lock")
+		return nil, false, i18n.Errorf("failed to acquire loop lock")
 	}
 	return unlock, true, nil
 }
@@ -632,7 +633,7 @@ func markStaleRunForLoop(repo, runID, reason string) error {
 		return err
 	}
 	if status != lockStatusStale {
-		return fmt.Errorf("run %s:  lock state changed; refusing reclamation", runID)
+		return i18n.Errorf("run %s:  lock state changed; refusing reclamation", runID)
 	}
 	return mergeState(repo, runID, func(state *State) {
 		if state.Status == statusRunning {
@@ -678,7 +679,7 @@ func clearArchiveLock(repo, runID string) error {
 	case lockStatusActive:
 		return newRunLockedError(runID)
 	case lockStatusUnknown:
-		return fmt.Errorf("run %s has an uncertain lock; cannot archive", runID)
+		return i18n.Errorf("run %s has an uncertain lock; cannot archive", runID)
 	}
 	return nil
 }

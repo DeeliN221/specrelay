@@ -4,7 +4,7 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 )
 
@@ -15,17 +15,17 @@ func dispatchRepositoryCommand(ctx context.Context, args []string, stdout io.Wri
 	}
 	switch args[0] {
 	case "init":
-		return fmt.Errorf("specrelay flow init has been removed; use specrelay flow config")
+		return i18n.Errorf("specrelay flow init has been removed; use specrelay flow config")
 	case "install":
-		return fmt.Errorf("specrelay flow install has been removed; prompts are embedded in specrelay-flow.yaml; use specrelay flow config or specrelay flow config --global")
+		return i18n.Errorf("specrelay flow install has been removed; prompts are embedded in specrelay-flow.yaml; use specrelay flow config or specrelay flow config --global")
 	case "contract":
 		if !hasFlag(args[1:], "--json") {
-			return fmt.Errorf("Usage: specrelay flow contract --json")
+			return i18n.Errorf("Usage: specrelay flow contract --json")
 		}
 		return writeRunnerContract(stdout)
 	case "list-changes":
 		if !hasFlag(args[1:], "--json") {
-			return fmt.Errorf("Usage: specrelay flow list-changes --json")
+			return i18n.Errorf("Usage: specrelay flow list-changes --json")
 		}
 		changes, err := ListChanges(repo)
 		if err != nil {
@@ -38,7 +38,7 @@ func dispatchRepositoryCommand(ctx context.Context, args []string, stdout io.Wri
 		return dispatchRunAcceptanceCommand(ctx, args, stdout, repo)
 	case "r":
 		if len(args) != 1 {
-			return fmt.Errorf("Usage: specrelay flow r")
+			return i18n.Errorf("Usage: specrelay flow r")
 		}
 		return submitAllActiveChanges(ctx, stdout, repo, engine)
 	case "resume":
@@ -60,7 +60,7 @@ func dispatchRepositoryCommand(ctx context.Context, args []string, stdout io.Wri
 	case "clean":
 		for _, arg := range args[1:] {
 			if arg != "--agent-sessions" && arg != "--dry-run" && arg != "--json" {
-				return fmt.Errorf("Usage: specrelay flow clean [--agent-sessions] [--dry-run] [--json]")
+				return i18n.Errorf("Usage: specrelay flow clean [--agent-sessions] [--dry-run] [--json]")
 			}
 		}
 		return runClean(stdout, repo, args[1:]...)
@@ -72,14 +72,14 @@ func dispatchRepositoryCommand(ctx context.Context, args []string, stdout io.Wri
 		return engine.Resume(ctx)
 	case "--run":
 		if len(args) != 2 {
-			return fmt.Errorf("Usage: specrelay flow --run <change-name>")
+			return i18n.Errorf("Usage: specrelay flow --run <change-name>")
 		}
 		if err := ValidateChange(repo, args[1]); err != nil {
 			return err
 		}
 		return engine.SubmitBatch(ctx, []Change{{Name: args[1]}})
 	default:
-		return fmt.Errorf("unknown command %q", args[0])
+		return i18n.Errorf("unknown command %q", args[0])
 	}
 }
 
@@ -89,7 +89,7 @@ func dispatchRunCommand(ctx context.Context, args []string, stdout io.Writer, re
 		return submitAllActiveChanges(ctx, stdout, repo, engine)
 	}
 	if !hasFlag(args[1:], "--json") {
-		return fmt.Errorf("Usage: specrelay flow run --change <change-name> --json")
+		return i18n.Errorf("Usage: specrelay flow run --change <change-name> --json")
 	}
 	changeName, err := requireFlagValue(args[1:], "--change")
 	if err != nil {
@@ -97,7 +97,7 @@ func dispatchRunCommand(ctx context.Context, args []string, stdout io.Writer, re
 	}
 	engine.Output = nil
 	if engineName, _ := optionalFlagValue(args[1:], "--engine"); engineName != "" {
-		return fmt.Errorf("the engine parameter has been removed; use specrelay flow run")
+		return i18n.Errorf("the engine parameter has been removed; use specrelay flow run")
 	}
 	return engine.StartJSON(ctx, changeName, stdout)
 }
@@ -105,7 +105,7 @@ func dispatchRunCommand(ctx context.Context, args []string, stdout io.Writer, re
 // dispatchResumeCommand handles JSON runner resume and preserves failure DTO output.
 func dispatchResumeCommand(ctx context.Context, args []string, stdout io.Writer, repo string, engine *Engine) error {
 	if !hasFlag(args[1:], "--json") {
-		return fmt.Errorf("Usage: specrelay flow resume --run-id <run-id> --json")
+		return i18n.Errorf("Usage: specrelay flow resume --run-id <run-id> --json")
 	}
 	runID, err := requireFlagValue(args[1:], "--run-id")
 	if err != nil {
@@ -149,7 +149,7 @@ func dispatchBatchCommand(ctx context.Context, args []string, stdout io.Writer, 
 			}
 		}
 		if len(changeNames) == 0 {
-			return fmt.Errorf("Usage: specrelay flow batch append --batch-id <batch-id> --change <change-name> [--change <change-name> ...]")
+			return i18n.Errorf("Usage: specrelay flow batch append --batch-id <batch-id> --change <change-name> [--change <change-name> ...]")
 		}
 		changes := make([]Change, 0, len(changeNames))
 		for _, name := range changeNames {
@@ -158,7 +158,7 @@ func dispatchBatchCommand(ctx context.Context, args []string, stdout io.Writer, 
 		return appendSelectedBatchChanges(stdout, repo, batchID, changes)
 	}
 	if !hasFlag(args[1:], "--json") {
-		return fmt.Errorf("Usage: specrelay flow batch --batch-id <batch-id> --json")
+		return i18n.Errorf("Usage: specrelay flow batch --batch-id <batch-id> --json")
 	}
 	engine.Output = nil
 	return withBatchWorkerLifecycle(repo, batchID, func() error {
@@ -172,7 +172,7 @@ func dispatchRestartCommand(ctx context.Context, args []string, stdout io.Writer
 		runID, runErr := optionalFlagValue(args[1:], "--run-id")
 		batchID, batchErr := optionalFlagValue(args[1:], "--batch-id")
 		if runErr != nil || batchErr != nil || (runID == "" && batchID == "") || (runID != "" && batchID != "") {
-			return fmt.Errorf("Usage: specrelay flow restart --run-id <run-id> --json or specrelay flow restart --batch-id <batch-id> --json")
+			return i18n.Errorf("Usage: specrelay flow restart --run-id <run-id> --json or specrelay flow restart --batch-id <batch-id> --json")
 		}
 		engine.Output = nil
 		if runID != "" {
@@ -204,7 +204,7 @@ func dispatchStatusCommand(args []string, stdout io.Writer, repo string) error {
 // dispatchAbortCommand aborts a JSON runner workflow and emits the final state.
 func dispatchAbortCommand(args []string, stdout io.Writer, repo string) error {
 	if !hasFlag(args[1:], "--json") {
-		return fmt.Errorf("Usage: specrelay flow abort --run-id <run-id> --json")
+		return i18n.Errorf("Usage: specrelay flow abort --run-id <run-id> --json")
 	}
 	runID, err := requireFlagValue(args[1:], "--run-id")
 	if err != nil {

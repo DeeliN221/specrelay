@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
@@ -44,7 +44,7 @@ func validateReviewableEvidenceFile(path string, evidence Evidence) error {
 		return validateReviewableJSON(path)
 	default:
 		if info.Size() < 64 {
-			return fmt.Errorf("evidence is too short for a reviewer to assess the user-visible result")
+			return i18n.Errorf("evidence is too short for a reviewer to assess the user-visible result")
 		}
 		return nil
 	}
@@ -53,14 +53,14 @@ func validateReviewableEvidenceFile(path string, evidence Evidence) error {
 // validateReviewableVideo rejects obvious placeholders without imposing a video container format.
 func validateReviewableVideo(path string, size int64) error {
 	if size < minimumReviewableVideoBytes {
-		return fmt.Errorf("demo_video is smaller than %d bytes and is not a reviewable video", minimumReviewableVideoBytes)
+		return i18n.Errorf("demo_video is smaller than %d bytes and is not a reviewable video", minimumReviewableVideoBytes)
 	}
 	probe, err := readEvidenceContainerProbe(path, size)
 	if err != nil {
 		return err
 	}
 	if utf8.Valid(probe) && !bytes.ContainsRune(probe, '\x00') && strings.TrimSpace(string(probe)) != "" {
-		return fmt.Errorf("demo_video contains only text and cannot replace a playable video")
+		return i18n.Errorf("demo_video contains only text and cannot replace a playable video")
 	}
 	return nil
 }
@@ -96,10 +96,10 @@ func validateReviewableScreenshot(path string) error {
 	defer file.Close()
 	config, _, err := image.DecodeConfig(file)
 	if err != nil {
-		return fmt.Errorf("screenshot cannot be decoded; renaming text does not create an image: %w", err)
+		return i18n.Errorf("screenshot cannot be decoded; renaming text does not create an image: %w", err)
 	}
 	if config.Width < minimumReviewableImageWidth || config.Height < minimumReviewableImageHeight {
-		return fmt.Errorf(
+		return i18n.Errorf(
 			"screenshot dimensions %dx%d are too small to show user-visible results",
 			config.Width,
 			config.Height,
@@ -112,11 +112,11 @@ func validateReviewableScreenshot(path string) error {
 func validateReviewableTrace(path string) error {
 	trace, err := zip.OpenReader(path)
 	if err != nil {
-		return fmt.Errorf("trace is not a readable ZIP archive: %w", err)
+		return i18n.Errorf("trace is not a readable ZIP archive: %w", err)
 	}
 	defer trace.Close()
 	if len(trace.File) == 0 {
-		return fmt.Errorf("trace archive is empty")
+		return i18n.Errorf("trace archive is empty")
 	}
 	return nil
 }
@@ -129,7 +129,7 @@ func validateReviewableText(path string) error {
 	}
 	lines := nonemptyEvidenceLines(string(data))
 	if len(lines) < 3 {
-		return fmt.Errorf("text evidence needs at least three lines describing the scenario, actions, and visible outcome")
+		return i18n.Errorf("text evidence needs at least three lines describing the scenario, actions, and visible outcome")
 	}
 	allMetadata := true
 	for _, line := range lines {
@@ -139,7 +139,7 @@ func validateReviewableText(path string) error {
 		}
 	}
 	if allMetadata {
-		return fmt.Errorf("text evidence contains only commands, statuses, or key=value pairs rather than user-visible results")
+		return i18n.Errorf("text evidence contains only commands, statuses, or key=value pairs rather than user-visible results")
 	}
 	return nil
 }
@@ -151,7 +151,7 @@ func validateReviewableJSON(path string) error {
 		return err
 	}
 	if len(bytes.TrimSpace(data)) < 64 || !json.Valid(data) {
-		return fmt.Errorf("structured evidence must be valid JSON with actual business fields")
+		return i18n.Errorf("structured evidence must be valid JSON with actual business fields")
 	}
 	var value any
 	if err := json.Unmarshal(data, &value); err != nil {
@@ -160,14 +160,14 @@ func validateReviewableJSON(path string) error {
 	switch typed := value.(type) {
 	case map[string]any:
 		if len(typed) == 0 {
-			return fmt.Errorf("structured evidence must not be an empty object")
+			return i18n.Errorf("structured evidence must not be an empty object")
 		}
 	case []any:
 		if len(typed) == 0 {
-			return fmt.Errorf("structured evidence must not be an empty array")
+			return i18n.Errorf("structured evidence must not be an empty array")
 		}
 	default:
-		return fmt.Errorf("structured evidence must be an object or array")
+		return i18n.Errorf("structured evidence must be an object or array")
 	}
 	return nil
 }
@@ -184,10 +184,10 @@ func readTextEvidence(path string) ([]byte, error) {
 		return nil, err
 	}
 	if len(data) > maxTextEvidenceProbeBytes {
-		return nil, fmt.Errorf("text evidence exceeds 1 MiB; retain the key facts a reviewer needs")
+		return nil, i18n.Errorf("text evidence exceeds 1 MiB; retain the key facts a reviewer needs")
 	}
 	if !utf8.Valid(data) {
-		return nil, fmt.Errorf("text evidence must be directly readable UTF-8")
+		return nil, i18n.Errorf("text evidence must be directly readable UTF-8")
 	}
 	return data, nil
 }
@@ -217,14 +217,14 @@ func validateDeliveryComparisonArtifacts(projectRoot string, contract Contract) 
 		afterPath := filepath.Join(projectRoot, filepath.FromSlash(archiveByID[scenario.Comparison.AfterEvidenceID]))
 		beforeHash, err := evidenceFileHash(beforePath)
 		if err != nil {
-			return fmt.Errorf("delivery_report.scenarios[%d] cannot read before evidence: %w", i, err)
+			return i18n.Errorf("delivery_report.scenarios[%d] cannot read before evidence: %w", i, err)
 		}
 		afterHash, err := evidenceFileHash(afterPath)
 		if err != nil {
-			return fmt.Errorf("delivery_report.scenarios[%d] cannot read after evidence: %w", i, err)
+			return i18n.Errorf("delivery_report.scenarios[%d] cannot read after evidence: %w", i, err)
 		}
 		if beforeHash == afterHash {
-			return fmt.Errorf("delivery_report.scenarios[%d] has identical before and after evidence content", i)
+			return i18n.Errorf("delivery_report.scenarios[%d] has identical before and after evidence content", i)
 		}
 	}
 	return nil

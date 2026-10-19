@@ -4,7 +4,7 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"io"
 	"os"
 	"path/filepath"
@@ -24,16 +24,16 @@ func restartHuman(ctx context.Context, stdout io.Writer, repo string, engine *En
 		if err := engine.RestartBatchDetached(ref.ID); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Restarted batch %s\n", ref.Alias)
+		i18n.Fprintf(stdout, "Restarted batch %s\n", ref.Alias)
 		return nil
 	case "run":
 		if err := engine.RestartRunDetached(ref.ID, true); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Restarted workflow %s\n", ref.Alias)
+		i18n.Fprintf(stdout, "Restarted workflow %s\n", ref.Alias)
 		return nil
 	default:
-		return fmt.Errorf("No task available to restart")
+		return i18n.Errorf("No task available to restart")
 	}
 }
 
@@ -60,10 +60,10 @@ func ResolveRestartTarget(repo string, args []string) (kind string, ref StatusRe
 				return "run", runRef, nil
 			}
 		}
-		return "", StatusRef{}, fmt.Errorf("No task available to restart")
+		return "", StatusRef{}, i18n.Errorf("No task available to restart")
 	}
 	if len(args) != 1 {
-		return "", StatusRef{}, fmt.Errorf("Usage: specrelay flow restart [-bN|-wN]")
+		return "", StatusRef{}, i18n.Errorf("Usage: specrelay flow restart [-bN|-wN]")
 	}
 	switch {
 	case strings.HasPrefix(args[0], "-b"):
@@ -73,7 +73,7 @@ func ResolveRestartTarget(repo string, args []string) (kind string, ref StatusRe
 		ref, err := resolveIndexedRef(repo, args[0], "-w", ListRunRefs)
 		return "run", ref, err
 	default:
-		return "", StatusRef{}, fmt.Errorf("Usage: specrelay flow restart [-bN|-wN]")
+		return "", StatusRef{}, i18n.Errorf("Usage: specrelay flow restart [-bN|-wN]")
 	}
 }
 
@@ -175,7 +175,7 @@ func (e *Engine) RestartBatchDetached(batchID string) error {
 	if err := e.prepareRestartBatch(batchID, true); err != nil {
 		batchHash, runHash, hashErr := detachedBatchPreparedHashes(e.Repo, batchRollback, runRollback)
 		if hashErr != nil {
-			return errors.Join(err, fmt.Errorf("read batch preparation rollback generation failed: %w", hashErr))
+			return errors.Join(err, i18n.Errorf("read batch preparation rollback generation failed: %w", hashErr))
 		}
 		return restoreDetachedBatchFailure(e.Repo, batchRollback, runRollback, batchHash, runHash, err)
 	}
@@ -245,32 +245,32 @@ func restoreDetachedBatchFailure(
 	lockPath := batchDir(repo, batchRollback.BatchID) + ".lock"
 	batchUnlock, err := flockLock(lockPath)
 	if err != nil {
-		return errors.Join(operationErr, fmt.Errorf("acquire batch rollback lease failed: %w", err))
+		return errors.Join(operationErr, i18n.Errorf("acquire batch rollback lease failed: %w", err))
 	}
 	defer func() { _ = batchUnlock() }()
 	currentBatch, err := os.ReadFile(filepath.Join(batchDir(repo, batchRollback.BatchID), "state.json"))
 	if err != nil {
-		return errors.Join(operationErr, fmt.Errorf("read batch rollback generation failed: %w", err))
+		return errors.Join(operationErr, i18n.Errorf("read batch rollback generation failed: %w", err))
 	}
 	if expectedBatchHash == "" || qualityHashStrings(string(currentBatch)) != expectedBatchHash {
-		return errors.Join(operationErr, fmt.Errorf("batch state generation changed before background launch; refusing stale rollback"))
+		return errors.Join(operationErr, i18n.Errorf("batch state generation changed before background launch; refusing stale rollback"))
 	}
 	if runRollback != nil {
 		runUnlock, lockErr := acquireLock(repo, runRollback.State.RunID)
 		if lockErr != nil {
-			return errors.Join(operationErr, fmt.Errorf("batch current run has an active lease; refusing stale rollback: %w", lockErr))
+			return errors.Join(operationErr, i18n.Errorf("batch current run has an active lease; refusing stale rollback: %w", lockErr))
 		}
 		defer runUnlock()
 		restored, restoreErr := restoreDetachedRunIfCurrent(repo, *runRollback, expectedRunHash)
 		if restoreErr != nil {
-			return errors.Join(operationErr, fmt.Errorf("restore batch current run failed: %w", restoreErr))
+			return errors.Join(operationErr, i18n.Errorf("restore batch current run failed: %w", restoreErr))
 		}
 		if !restored {
-			return errors.Join(operationErr, fmt.Errorf("batch current run state generation changed; refusing stale rollback"))
+			return errors.Join(operationErr, i18n.Errorf("batch current run state generation changed; refusing stale rollback"))
 		}
 	}
 	if err := saveBatchState(repo, batchRollback); err != nil {
-		return errors.Join(operationErr, fmt.Errorf("restore batch state before background launch failed: %w", err))
+		return errors.Join(operationErr, i18n.Errorf("restore batch state before background launch failed: %w", err))
 	}
 	return operationErr
 }
@@ -296,16 +296,16 @@ func (e *Engine) prepareRestartBatch(batchID string, allowUnknownLock bool) erro
 		return err
 	}
 	if workerLock == lockStatusActive {
-		return fmt.Errorf("batch %s still has an active worker; cannot restart", batchID)
+		return i18n.Errorf("batch %s still has an active worker; cannot restart", batchID)
 	}
 	if workerLock == lockStatusUnknown {
-		return fmt.Errorf("batch %s:  worker lock is uncertain; cannot restart", batchID)
+		return i18n.Errorf("batch %s:  worker lock is uncertain; cannot restart", batchID)
 	}
 	switch batch.Status {
 	case batchStatusRunning:
 	case batchStatusFailed:
 	default:
-		return fmt.Errorf("batch %s reached %s; cannot restart automatically", batchID, batch.Status)
+		return i18n.Errorf("batch %s reached %s; cannot restart automatically", batchID, batch.Status)
 	}
 	if batch.CurrentIndex < len(batch.Changes) {
 		changeName := batch.Changes[batch.CurrentIndex]
@@ -326,7 +326,7 @@ func (e *Engine) prepareRestartBatch(batchID string, allowUnknownLock bool) erro
 					if changeName != "" {
 						prefix = changeName + ": "
 					}
-					return fmt.Errorf("%sworkflow record is missing; automatic recovery cannot be determined", prefix)
+					return i18n.Errorf("%sworkflow record is missing; automatic recovery cannot be determined", prefix)
 				}
 				if err := ensureRunRestartable(state); err != nil {
 					return err
@@ -361,11 +361,11 @@ func ensureRunRestartable(state State) error {
 	case statusFailed, statusInterrupted, statusRunning, statusAcceptanceContractBlocked, statusBlockedEnvironment, statusBlockedStalled:
 		return nil
 	case statusDone:
-		return fmt.Errorf("workflow %s is complete; cannot restart", state.RunID)
+		return i18n.Errorf("workflow %s is complete; cannot restart", state.RunID)
 	case statusBlocked, statusValidationBlocked, statusAborted, "aborted":
-		return fmt.Errorf("workflow %s reached %s; cannot restart automatically", state.RunID, state.Status)
+		return i18n.Errorf("workflow %s reached %s; cannot restart automatically", state.RunID, state.Status)
 	default:
-		return fmt.Errorf("workflow %s with status %s cannot restart", state.RunID, state.Status)
+		return i18n.Errorf("workflow %s with status %s cannot restart", state.RunID, state.Status)
 	}
 }
 
@@ -437,7 +437,7 @@ func clearRestartLock(repo, runID string, allowUnknownLock bool) error {
 		return newRunLockedError(runID)
 	case lockStatusUnknown:
 		if !allowUnknownLock {
-			return fmt.Errorf("run %s has an uncertain lock; resume or stop it through the interactive menu", runID)
+			return i18n.Errorf("run %s has an uncertain lock; resume or stop it through the interactive menu", runID)
 		}
 	}
 	return nil

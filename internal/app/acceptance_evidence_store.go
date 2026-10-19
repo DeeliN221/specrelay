@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/DeeliN221/specrelay/internal/acceptance"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 )
 
 const acceptanceEvidenceDirectory = "evidence"
@@ -19,7 +20,7 @@ const acceptanceEvidenceDirectory = "evidence"
 // acceptanceRunSealedDir resolves the immutable state directory for one workflow attempt.
 func acceptanceRunSealedDir(repo string, binding acceptanceRunBinding) (string, error) {
 	if !safeAcceptancePathSegment(binding.RunID) || !safeAcceptancePathSegment(binding.Stage) || binding.Attempt < 1 {
-		return "", fmt.Errorf("acceptance evidence binding invalid: run=%q stage=%q attempt=%d", binding.RunID, binding.Stage, binding.Attempt)
+		return "", i18n.Errorf("acceptance evidence binding invalid: run=%q stage=%q attempt=%d", binding.RunID, binding.Stage, binding.Attempt)
 	}
 	return filepath.Join(
 		runDir(repo, binding.RunID),
@@ -32,7 +33,7 @@ func acceptanceRunSealedDir(repo string, binding acceptanceRunBinding) (string, 
 // sealAcceptanceRunArtifacts snapshots temporary logs and required evidence before later stages can overwrite them.
 func sealAcceptanceRunArtifacts(repo string, binding acceptanceRunBinding, result *AcceptanceRunResult) error {
 	if result == nil {
-		return fmt.Errorf("acceptance evidence result must not be empty")
+		return i18n.Errorf("acceptance evidence result must not be empty")
 	}
 	sealedDir, err := acceptanceRunSealedDir(repo, binding)
 	if err != nil {
@@ -44,12 +45,12 @@ func sealAcceptanceRunArtifacts(repo string, binding acceptanceRunBinding, resul
 		item := &result.Tests[index]
 		data, readErr := readAcceptanceArtifactFile(repo, item.LogPath)
 		if readErr != nil {
-			sealErrors = append(sealErrors, fmt.Errorf("read temporary log for required_test %q failed: %w", item.ID, readErr))
+			sealErrors = append(sealErrors, i18n.Errorf("read temporary log for required_test %q failed: %w", item.ID, readErr))
 			continue
 		}
 		target := filepath.Join(sealedDir, "tests", acceptanceLogName(index, item.ID))
 		if writeErr := writeImmutableEvidenceFile(target, data, 0o600); writeErr != nil {
-			sealErrors = append(sealErrors, fmt.Errorf("seal log for required_test %q failed: %w", item.ID, writeErr))
+			sealErrors = append(sealErrors, i18n.Errorf("seal log for required_test %q failed: %w", item.ID, writeErr))
 			continue
 		}
 		item.SealedLogPath = target
@@ -61,17 +62,17 @@ func sealAcceptanceRunArtifacts(repo string, binding acceptanceRunBinding, resul
 		}
 		data, readErr := readRepositoryEvidence(repo, item.Path)
 		if readErr != nil {
-			sealErrors = append(sealErrors, fmt.Errorf("read required_evidence %q failed: %w", item.ID, readErr))
+			sealErrors = append(sealErrors, i18n.Errorf("read required_evidence %q failed: %w", item.ID, readErr))
 			continue
 		}
 		target := filepath.Join(sealedDir, "required", acceptanceEvidenceName(index, item.ID, item.Path))
 		if writeErr := writeImmutableEvidenceFile(target, data, 0o600); writeErr != nil {
-			sealErrors = append(sealErrors, fmt.Errorf("seal required_evidence %q failed: %w", item.ID, writeErr))
+			sealErrors = append(sealErrors, i18n.Errorf("seal required_evidence %q failed: %w", item.ID, writeErr))
 			continue
 		}
 		rawHash, progressHash, _, hashErr := qualityHashEvidenceFilePair(target, item.Kind)
 		if hashErr != nil {
-			sealErrors = append(sealErrors, fmt.Errorf("verify sealed copy of required_evidence %q failed: %w", item.ID, hashErr))
+			sealErrors = append(sealErrors, i18n.Errorf("verify sealed copy of required_evidence %q failed: %w", item.ID, hashErr))
 			continue
 		}
 		item.SealedPath = target
@@ -95,14 +96,14 @@ func acceptanceEvidenceName(index int, id, sourcePath string) string {
 func readRepositoryEvidence(repo, relative string) ([]byte, error) {
 	clean := filepath.Clean(filepath.FromSlash(strings.TrimSpace(relative)))
 	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
-		return nil, fmt.Errorf("evidence path is invalid: %q", relative)
+		return nil, i18n.Errorf("evidence path is invalid: %q", relative)
 	}
 	resolved, safe, err := qualityResolveEvidencePath(repo, filepath.Join(repo, clean))
 	if err != nil {
 		return nil, err
 	}
 	if !safe {
-		return nil, fmt.Errorf("evidence escapes the repository: %q", relative)
+		return nil, i18n.Errorf("evidence escapes the repository: %q", relative)
 	}
 	return readRegularEvidenceFile(resolved)
 }
@@ -129,7 +130,7 @@ func writeImmutableEvidenceFile(path string, data []byte, mode os.FileMode) erro
 			return readErr
 		}
 		if !bytes.Equal(existing, data) {
-			return fmt.Errorf("immutable acceptance evidence already exists with different content: %s", path)
+			return i18n.Errorf("immutable acceptance evidence already exists with different content: %s", path)
 		}
 		return nil
 	}
@@ -171,7 +172,7 @@ func ensureRealEvidenceDirectory(path string, mode os.FileMode) error {
 			return statErr
 		}
 		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-			return fmt.Errorf("acceptance evidence directory must be a real directory: %s", current)
+			return i18n.Errorf("acceptance evidence directory must be a real directory: %s", current)
 		}
 	}
 	return nil
@@ -180,7 +181,7 @@ func ensureRealEvidenceDirectory(path string, mode os.FileMode) error {
 // writeSealedAcceptanceRunResult commits the result metadata once after every evidence path is bound.
 func writeSealedAcceptanceRunResult(result AcceptanceRunResult) error {
 	if !filepath.IsAbs(result.ResultPath) {
-		return fmt.Errorf("sealed acceptance result path must be absolute: %s", result.ResultPath)
+		return i18n.Errorf("sealed acceptance result path must be absolute: %s", result.ResultPath)
 	}
 	data, err := marshalAcceptanceRunResult(result)
 	if err != nil {
@@ -192,7 +193,7 @@ func writeSealedAcceptanceRunResult(result AcceptanceRunResult) error {
 // readSealedAcceptanceArtifact reads a state artifact without following a final link.
 func readSealedAcceptanceArtifact(path string) ([]byte, error) {
 	if !filepath.IsAbs(path) {
-		return nil, fmt.Errorf("sealed acceptance artifact path must be absolute: %s", path)
+		return nil, i18n.Errorf("sealed acceptance artifact path must be absolute: %s", path)
 	}
 	return readRegularEvidenceFile(path)
 }
@@ -229,7 +230,7 @@ func promoteQualityAcceptanceEvidence(repo string, state State, checkpoint strin
 		return err
 	}
 	if contract.SubmissionEvidence == nil {
-		return fmt.Errorf("proposal %q must declare submission_evidence before archiving", state.ChangeName)
+		return i18n.Errorf("proposal %q must declare submission_evidence before archiving", state.ChangeName)
 	}
 	observations, err := qualityDeliveryObservations(repo, state, contract)
 	if err != nil {
@@ -268,7 +269,7 @@ func promoteQualityAcceptanceEvidence(repo string, state State, checkpoint strin
 	for _, mapping := range contract.SubmissionEvidence {
 		item, ok := evidenceByID[mapping.EvidenceID]
 		if !ok || item.Path != mapping.SourcePath || item.SealedPath == "" || item.Status != "present" {
-			return fmt.Errorf("submission_evidence %q is missing a matching sealed copy", mapping.EvidenceID)
+			return i18n.Errorf("submission_evidence %q is missing a matching sealed copy", mapping.EvidenceID)
 		}
 		target, pathErr := acceptanceArtifactFilePath(repo, mapping.ArchivePath, true)
 		if pathErr != nil {
@@ -284,7 +285,7 @@ func promoteQualityAcceptanceEvidence(repo string, state State, checkpoint strin
 	}
 	for source, target := range copies {
 		if strings.TrimSpace(source) == "" {
-			return fmt.Errorf("acceptance archive bundle is missing the sealed source path")
+			return i18n.Errorf("acceptance archive bundle is missing the sealed source path")
 		}
 		data, readErr := readSealedAcceptanceArtifact(source)
 		if readErr != nil {
@@ -317,22 +318,22 @@ func promoteQualityAcceptanceEvidence(repo string, state State, checkpoint strin
 // qualityDeliveryObservations reads the final clean QA observations used in the reviewer report.
 func qualityDeliveryObservations(repo string, state State, contract acceptance.Contract) ([]acceptance.DeliveryObservation, error) {
 	if contract.DeliveryReport == nil {
-		return nil, fmt.Errorf("proposal %q is missing a reviewer-facing delivery_report", state.ChangeName)
+		return nil, i18n.Errorf("proposal %q is missing a reviewer-facing delivery_report", state.ChangeName)
 	}
 	iteration := latestCompletedQAIteration(state)
 	if iteration < 1 {
-		return nil, fmt.Errorf("proposal %q has no final clean QA; cannot generate a delivery report", state.ChangeName)
+		return nil, i18n.Errorf("proposal %q has no final clean QA; cannot generate a delivery report", state.ChangeName)
 	}
 	qaPath := filepath.Join(runDir(repo, state.RunID), fmt.Sprintf("qa-%d.json", iteration))
 	qa, err := ReadQA(qaPath)
 	if err != nil {
-		return nil, fmt.Errorf("read final QA delivery observations failed: %w", err)
+		return nil, i18n.Errorf("read final QA delivery observations failed: %w", err)
 	}
 	if err := ValidateQAAgainstAcceptance(qa, contract); err != nil {
 		return nil, err
 	}
 	if QANeedsFix(qa) {
-		return nil, fmt.Errorf("final QA has not passed; cannot generate a delivery report")
+		return nil, i18n.Errorf("final QA has not passed; cannot generate a delivery report")
 	}
 	observations := make([]acceptance.DeliveryObservation, 0, len(qa.UserAcceptance))
 	for _, result := range qa.UserAcceptance {

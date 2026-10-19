@@ -2,7 +2,7 @@
 package app
 
 import (
-	"fmt"
+	"github.com/DeeliN221/specrelay/internal/i18n"
 	"strconv"
 	"strings"
 	"time"
@@ -36,30 +36,30 @@ func stageChecklistLinesForRepo(repo string, state State, runtime map[string]sta
 	if state.Status == statusBlocked || state.Stage == statusBlocked {
 		reason := state.Error
 		if reason == "" {
-			reason = "review repair limit reached; workflow interrupted"
+			reason = i18n.T("review repair limit reached; workflow interrupted")
 		}
-		lines = append(lines, fmt.Sprintf("- Status %s x %s", statusBlocked, reason))
+		lines = append(lines, i18n.Sprintf("- Status %s x %s", statusBlocked, reason))
 	}
 	if state.Status == statusValidationBlocked || state.Stage == statusValidationBlocked {
 		reason := state.Error
 		if reason == "" {
-			reason = "stage validation limit reached; workflow interrupted"
+			reason = i18n.T("stage validation limit reached; workflow interrupted")
 		}
-		lines = append(lines, fmt.Sprintf("- Status %s x %s", statusValidationBlocked, reason))
+		lines = append(lines, i18n.Sprintf("- Status %s x %s", statusValidationBlocked, reason))
 	}
 	if state.Status == statusAcceptanceContractBlocked || state.Stage == statusAcceptanceContractBlocked {
 		reason := state.Error
 		if reason == "" {
-			reason = "acceptance contract preflight failed; workflow interrupted"
+			reason = i18n.T("acceptance contract preflight failed; workflow interrupted")
 		}
-		lines = append(lines, fmt.Sprintf("- Status %s x %s", statusAcceptanceContractBlocked, reason))
+		lines = append(lines, i18n.Sprintf("- Status %s x %s", statusAcceptanceContractBlocked, reason))
 	}
 	for _, blocked := range []struct {
 		status string
 		reason string
 	}{
-		{status: statusBlockedEnvironment, reason: "Environment prerequisites are missing; resume the workflow after supplying them"},
-		{status: statusBlockedStalled, reason: "No verifiable progress on the same failure; workflow awaits new information"},
+		{status: statusBlockedEnvironment, reason: i18n.T("Environment prerequisites are missing; resume the workflow after supplying them")},
+		{status: statusBlockedStalled, reason: i18n.T("No verifiable progress on the same failure; workflow awaits new information")},
 	} {
 		if state.Status != blocked.status && state.Stage != blocked.status {
 			continue
@@ -68,10 +68,10 @@ func stageChecklistLinesForRepo(repo string, state State, runtime map[string]sta
 		if reason == "" {
 			reason = blocked.reason
 		}
-		lines = append(lines, fmt.Sprintf("- Status %s x %s", blocked.status, reason))
+		lines = append(lines, i18n.Sprintf("- Status %s x %s", blocked.status, reason))
 	}
 	if len(lines) == 0 {
-		return []string{"- write unknown →"}
+		return []string{i18n.T("- write unknown →")}
 	}
 	lines = append(lines, stageDurationSummaryLines(state, time.Now().UTC())...)
 	return lines
@@ -108,8 +108,6 @@ type visibleSessionItem struct {
 	running   string
 }
 
-const preWorkflowCompletedLabel = "completed before the workflow started"
-
 // visibleSessionItems groups launched workflow stages by human session role.
 func visibleSessionItems(state State, runtime map[string]stageRuntime) []visibleSessionItem {
 	stages := observedStatusStages(state)
@@ -119,7 +117,7 @@ func visibleSessionItems(state State, runtime map[string]stageRuntime) []visible
 		if role == "planner" {
 			item := visibleSessionItem{role: role, label: sessionRoleLabel(role), sessionID: plannerSessionID(state)}
 			if item.sessionID == "" {
-				item.sessionID = preWorkflowCompletedLabel
+				item.sessionID = i18n.T("completed before the workflow started")
 				item.completed = 1
 			}
 			items = append(items, item)
@@ -142,7 +140,7 @@ func visibleSessionItems(state State, runtime map[string]stageRuntime) []visible
 			continue
 		}
 		if role == "executor" && item.sessionID == "" && item.completed > 0 && item.running == "" {
-			item.sessionID = preWorkflowCompletedLabel
+			item.sessionID = i18n.T("completed before the workflow started")
 		}
 		if item.sessionID == "" && (item.completed > 0 || item.running != "" || occurred) {
 			item.sessionID = "unknown"
