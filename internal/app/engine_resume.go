@@ -99,7 +99,7 @@ func captureDetachedRunRollback(repo string, state State) (detachedRunRollback, 
 	} else if !os.IsNotExist(statErr) {
 		return detachedRunRollback{}, statErr
 	}
-	matches, err := filepath.Glob(filepath.Join(repo, "docs", "changes", "archive", "*-"+state.ChangeName))
+	matches, err := archivedChangeDirs(repo, state.ChangeName)
 	if err != nil {
 		return detachedRunRollback{}, err
 	}
@@ -501,7 +501,7 @@ func (e *Engine) restoreQualityLoopProposalForAudit(state *State) error {
 	case !os.IsNotExist(err):
 		return err
 	default:
-		matches, globErr := filepath.Glob(filepath.Join(e.Repo, "docs", "changes", "archive", "*-"+state.ChangeName))
+		matches, globErr := archivedChangeDirs(e.Repo, state.ChangeName)
 		if globErr != nil {
 			return globErr
 		}

@@ -30,7 +30,7 @@ Invoke slash commands rather than duplicating their procedures. The archive stag
 - For standalone archiving, collect the final evidence with `DELIVERY.md`, `README.md` and `manifest.json`.
 - Write delivery reports for reviewers: user benefit, preparation, actions, expected result, actual observation, direct evidence and limitations. For fixes include the before/after difference.
 - Commands, exit codes, HTTP 200, element presence, passing-test messages, hashes and hardcoded strings may supplement evidence but cannot replace understandable screenshots, videos, business logs or real input/output.
-- Run `specrelay archive <change> --yes`. The CLI moves the proposal directory including `tests/` and rewrites proposal-test paths in scripts, `acceptance.json`, `brief.md`, `spec.md` and other text. It does not logically merge tests into long-term `tests/specs/`.
+- Run `specrelay archive <change> --yes`. The CLI moves the proposal directory including `tests/` to `docs/changes/archive/<number>-<change-name>` without a date prefix and rewrites proposal-test paths in scripts, `acceptance.json`, `brief.md`, `spec.md` and other text. It does not logically merge tests into long-term `tests/specs/`.
 - Understand each archived test's business contract and assertions. Organize maintained tests by capability, not proposal number; do not merely copy whole proposal test directories.
 - Source comments may cite proposals (for example `// Sources: 1-login, 3-access-control`), while filenames describe capabilities.
 - Merge lasting behavior from the archived specification into `docs/specs/*.md`; for small changes use the brief. Run affected specification tests after updating paths. These edits must be finished before the final workflow QA boundary.
